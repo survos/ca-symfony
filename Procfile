@@ -1,2 +1,2 @@
-web:  vendor/bin/heroku-php-nginx -C heroku-nginx.conf  -F fpm_custom.conf providence-1.7.9/
+web:  vendor/bin/heroku-php-nginx -C heroku-nginx.conf  -F fpm_custom.conf public/
 release: ./bin/release-tasks.sh
