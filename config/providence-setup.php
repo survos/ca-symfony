@@ -37,9 +37,10 @@ define('__CA_ENABLE_DEBUG_OUTPUT__', true);
 (new Dotenv())->bootEnv(dirname(__DIR__).'/.env');
 
 // find the MySQL database url
-foreach (['JAWSDB_URL', 'CLEAR_DB_URL', 'DATABASE_URL'] as $key) {
-	if ($databaseUrl = $_SERVER[$key] ?: false) {
-		$parts = parse_url($databaseUrl);
+foreach (['DATABASE_URL', 'JAWSDB_URL', 'CLEAR_DB_URL'] as $key) {
+
+	if (!empty($_SERVER[$key])) {
+		$parts = parse_url($_SERVER[$key]);
 		if ($parts['scheme'] === 'mysql') {
 			define("__CA_DB_HOST__", $parts['host']);
 			define("__CA_DB_USER__", $parts['user']);

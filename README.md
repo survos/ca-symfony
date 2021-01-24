@@ -3,7 +3,11 @@
 ```bash
 git clone (this repo) && cd ca-symfony
 heroku create my-cool-collection-22
-heroku addons:create jawsdb
+# free, but hard to import
+heroku addons:create jawsdb:kitefin
+# $10/month
+heroku addons:create jawsdb:leopard
+
 heroku config:set APP_ENV=prod
 heroku config:set APP_SECRET=2442
 heroku config:set ADMIN_EMAIL=tacman@gmail.com
