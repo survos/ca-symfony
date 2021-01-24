@@ -4,14 +4,14 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "86508d8538d3045727c62d646570fbf0",
+    "content-hash": "9b2e7df299424097dd7b4328c0ad4938",
     "packages": [
         {
             "name": "collectiveaccess/providence",
             "version": "1.7.9",
             "dist": {
                 "type": "zip",
-                "url": "https://github.com/collectiveaccess/providence/archive/1.7.9.zip"
+                "url": "https://github.com/tacman/providence/archive/1.7.9-heroku.zip"
             },
             "type": "library"
         },

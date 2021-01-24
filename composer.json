@@ -77,7 +77,7 @@
                     "name": "collectiveaccess/providence",
                     "version": "1.7.9",
                     "dist": {
-                        "url": "https://github.com/collectiveaccess/providence/archive/1.7.9.zip",
+                        "url": "https://github.com/tacman/providence/archive/1.7.9-heroku.zip",
                         "type": "zip"
                     }
                 }
