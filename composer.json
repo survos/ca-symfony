@@ -96,12 +96,20 @@
         "auto-scripts": {
             "cache:clear": "symfony-cmd",
             "assets:install %PUBLIC_DIR%": "symfony-cmd"
+
         },
+        "ca-setup": [
+            "rm -Rf vendor/collectiveaccess/providence/app/tmp",
+            "mkdir -p vendor/collectiveaccess/providence/media/collectiveaccess",
+            "chmod +rw vendor/collectiveaccess/providence/media/collectiveaccess"
+        ],
         "post-install-cmd": [
-            "@auto-scripts"
+            "@auto-scripts",
+            "@ca-setup"
         ],
         "post-update-cmd": [
-            "@auto-scripts"
+            "@auto-scripts",
+            "@ca-setup"
         ]
     },
     "conflict": {

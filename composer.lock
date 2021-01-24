@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "625ed48b6dca4aa4f46ae04cb5f0884e",
+    "content-hash": "ae4500e1074883aaeafb92765b951fcd",
     "packages": [
         {
             "name": "collectiveaccess/providence",
@@ -8085,6 +8085,8 @@
         "php": "7.4.*",
         "ext-ctype": "*",
         "ext-iconv": "*",
+        "ext-imagick": "*",
+        "ext-gd": "*",
         "ext-dom": "*",
         "ext-json": "*"
     },
