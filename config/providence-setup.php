@@ -176,6 +176,10 @@ if (!defined("__CA_APP_NAME__")) {
 	define("__CA_APP_NAME__", "collectiveaccess");
 }
 
+// hack for installing via composer
+define('__CA_BASE_DIR__', realpath(__DIR__ . '/../vendor/collectiveaccess/providence'));
+//dd(__CA_BASE_DIR__);
+
 
 # __CA_GOOGLE_MAPS_KEY__ = A Google Maps key to use for mapping and geocoding featured (optional)
 #
