@@ -14,3 +14,6 @@
 .phpunit.result.cache
 /phpunit.xml
 ###< symfony/phpunit-bridge ###
+
+# hack -- this is really CA!
+/public
