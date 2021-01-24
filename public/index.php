@@ -18,5 +18,15 @@ if ($_SERVER['APP_DEBUG']) {
 $kernel = new Kernel($_SERVER['APP_ENV'], (bool) $_SERVER['APP_DEBUG']);
 $request = Request::createFromGlobals();
 $response = $kernel->handle($request);
-$response->send();
-$kernel->terminate($request, $response);
+
+$response = $kernel->handle($request);
+
+if ($response->getStatusCode() !== 404) {
+    $response->send();
+    $kernel->terminate($request, $response);
+    exit();
+}
+
+//include "providence/index.php";
+//$response->send();
+//$kernel->terminate($request, $response);
