@@ -21,19 +21,19 @@
 # THE VALUES BELOW MUST BE CHANGED TO SUIT YOUR ENVIRONMENT
 # --------------------------------------------------------------------------------------------
 
-$autoLoadFile = dirname(__DIR__).'/../vendor/autoload.php';
+$autoLoadFile = dirname(__DIR__).'/vendor/autoload.php';
 if (!file_exists($autoLoadFile)) {
 	die('does not exist: ' . $autoLoadFile);
 }
 require $autoLoadFile;
 use Symfony\Component\ErrorHandler\Debug;
 use Symfony\Component\Dotenv\Dotenv;
-if ($_SERVER['APP_DEBUG']) {
+if (!empty($_SERVER['APP_DEBUG'])) {
 	umask(0000);
 	Debug::enable();
 }
 
-(new Dotenv())->bootEnv(dirname(__DIR__).'/../.env');
+(new Dotenv())->bootEnv(dirname(__DIR__).'/.env');
 
 // find the MySQL database url
 foreach (['DATABASE_URL', 'JAWSDB_URL', 'CLEAR_DB_URL'] as $key) {
@@ -58,7 +58,7 @@ foreach (['DATABASE_URL', 'JAWSDB_URL', 'CLEAR_DB_URL'] as $key) {
 # __CA_DB_HOST__ = Database server host name (often 'localhost')
 #
 
-define('__CA_URL_ROOT__', '/providence');
+define('__CA_URL_ROOT__', '');
 if (!defined("__CA_DB_HOST__")) {
 	define("__CA_DB_HOST__", 'localhost');
 }
@@ -249,7 +249,7 @@ if (!defined('__CA_STACKTRACE_ON_EXCEPTION__')) {
 	define('__CA_STACKTRACE_ON_EXCEPTION__', false);
 }
 
-require(__DIR__."/app/helpers/post-setup.php");
+//require(__DIR__."/app/helpers/post-setup.php");
 
 /* ----------------------------------------------------------------------
  * CollectiveAccess
