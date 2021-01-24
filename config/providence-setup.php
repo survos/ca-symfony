@@ -32,22 +32,26 @@ if (!empty($_SERVER['APP_DEBUG'])) {
 	umask(0000);
 	Debug::enable();
 }
+define('__CA_ENABLE_DEBUG_OUTPUT__', true);
 
 (new Dotenv())->bootEnv(dirname(__DIR__).'/.env');
 
 // find the MySQL database url
-foreach (['DATABASE_URL', 'JAWSDB_URL', 'CLEAR_DB_URL'] as $key) {
+foreach (['JAWSDB_URL', 'CLEAR_DB_URL', 'DATABASE_URL'] as $key) {
 	if ($databaseUrl = $_SERVER[$key] ?: false) {
 		$parts = parse_url($databaseUrl);
 		if ($parts['scheme'] === 'mysql') {
-			define("__CA_DB_HOST__", 'localhost');
+			define("__CA_DB_HOST__", $parts['host']);
 			define("__CA_DB_USER__", $parts['user']);
 			define("__CA_DB_PASSWORD__", $parts['pass']);
 			define("__CA_DB_DATABASE__", str_replace('/', '', $parts['path']));
+//			dd(get_defined_constants());
+//            dd($parts);
 			break;
 		}
 	}
 }
+//dd(__CA_DB_HOST__);
 
 
 #
@@ -249,7 +253,7 @@ if (!defined('__CA_STACKTRACE_ON_EXCEPTION__')) {
 	define('__CA_STACKTRACE_ON_EXCEPTION__', false);
 }
 
-//require(__DIR__."/app/helpers/post-setup.php");
+require(__DIR__ . "../../vendor/collectiveaccess/providence/app/helpers/post-setup.php");
 
 /* ----------------------------------------------------------------------
  * CollectiveAccess
