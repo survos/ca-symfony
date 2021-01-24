@@ -7,6 +7,7 @@
         "php": ">=7.2.5",
         "ext-ctype": "*",
         "ext-iconv": "*",
+        "collectiveaccess/providence": "1.7.9",
         "composer/package-versions-deprecated": "1.11.99.1",
         "doctrine/annotations": "^1.0",
         "doctrine/doctrine-bundle": "^2.2",
@@ -69,6 +70,19 @@
             "App\\Tests\\": "tests/"
         }
     },
+    "repositories": [
+        {
+                "type": "package",
+                "package": {
+                    "name": "collectiveaccess/providence",
+                    "version": "1.7.9",
+                    "dist": {
+                        "url": "https://github.com/collectiveaccess/providence/archive/1.7.9.zip",
+                        "type": "zip"
+                    }
+                }
+        }
+    ],
     "replace": {
         "symfony/polyfill-ctype": "*",
         "symfony/polyfill-iconv": "*",

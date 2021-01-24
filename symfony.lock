@@ -1,4 +1,7 @@
 {
+    "collectiveaccess/providence": {
+        "version": "1.7.9"
+    },
     "composer/package-versions-deprecated": {
         "version": "1.11.99.1"
     },

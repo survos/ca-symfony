@@ -4,8 +4,17 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e549982fde28dafbcb131621a72332a3",
+    "content-hash": "86508d8538d3045727c62d646570fbf0",
     "packages": [
+        {
+            "name": "collectiveaccess/providence",
+            "version": "1.7.9",
+            "dist": {
+                "type": "zip",
+                "url": "https://github.com/collectiveaccess/providence/archive/1.7.9.zip"
+            },
+            "type": "library"
+        },
         {
             "name": "composer/package-versions-deprecated",
             "version": "1.11.99.1",
