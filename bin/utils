@@ -1,0 +1,1 @@
+cd vendor/collectiveaccess/providence/support && COLLECTIVEACCESS_HOME=../../../../config bin/caUtils --setup=providence-setup.php $1 $2

@@ -32,7 +32,7 @@ if (!empty($_SERVER['APP_DEBUG'])) {
 	umask(0000);
 	Debug::enable();
 }
-define('__CA_ENABLE_DEBUG_OUTPUT__', false);
+define('__CA_ENABLE_DEBUG_OUTPUT__', true);
 
 (new Dotenv())->bootEnv(dirname(__DIR__).'/.env');
 
@@ -261,7 +261,6 @@ if (!defined('__CA_ALLOW_INSTALLER_TO_OVERWRITE_EXISTING_INSTALLS__')) {
 if (!defined('__CA_STACKTRACE_ON_EXCEPTION__')) {
 	define('__CA_STACKTRACE_ON_EXCEPTION__', false);
 }
-
 
 require(__DIR__ . "../../vendor/collectiveaccess/providence/app/helpers/post-setup.php");
 
