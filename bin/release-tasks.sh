@@ -6,8 +6,10 @@
 mkdir -p vendor/collectiveaccess/providence/media/collectiveaccess
 chmod +rw vendor/collectiveaccess/providence/media/collectiveaccess
 cd vendor/collectiveaccess/providence/ && git checkout app && cd ../../..
+tools/php-cs-fixer/vendor/bin/php-cs-fixer fix vendor/collectiveaccess/providence/app/
 bin/console app:add-namespace
 bin/console c:c
+bin/console app:fix-classes
 vendor/bin/phpstan analyze  vendor/collectiveaccess/providence/app --memory-limit=1G --level=0 --autoload-file=config/setup.php
 
 

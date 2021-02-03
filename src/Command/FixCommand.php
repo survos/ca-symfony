@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -10,19 +11,31 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Finder\Finder;
 
-class AddNamespaceCommand extends Command
+class FixCommand extends Command
 {
-    protected static $defaultName = 'app:add-namespace';
+    protected static $defaultName = 'app:fix';
+    /**
+     * @var LoggerInterface
+     */
+    private LoggerInterface $logger;
+
+    public function __construct(LoggerInterface $logger, string $name = null)
+    {
+        parent::__construct($name);
+        $this->logger = $logger;
+    }
 
     protected function configure()
     {
         $this
             ->setDescription('Add a short description for your command')
             ->addArgument('dir', InputArgument::OPTIONAL, 'Directory to process', "vendor/collectiveaccess/providence/app")
-            ->addOption('overwrite', null, InputOption::VALUE_NONE, 'overwrite')
+            ->addOption('expand-classes', null, InputOption::VALUE_NONE, 'expand files that have multiple classes')
+            ->addOption('add-namespaces', null, InputOption::VALUE_NONE, 'add namespace to top of file')
         ;
     }
 
+    
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
@@ -36,11 +49,74 @@ class AddNamespaceCommand extends Command
             foreach ($finder as $file) {
                 $absoluteFilePath = $file->getRealPath();
                 
-                if ($php = $this->addNamespace($file))
+                $output->writeln(
+                    $absoluteFilePath,
+                    OutputInterface::VERBOSITY_VERBOSE
+                );
+//                $this->logger->warning($absoluteFilePath);
+                
+                
+                if ($php = file_get_contents($absoluteFilePath))
                 {
-                    if (file_put_contents($absoluteFilePath, $php)) {
-                        $io->success("File $absoluteFilePath written.");
+                    $newPhp = $php;
+                    // check to make sure that the filename matches the class name.  If not, create new files. 
+                    if (preg_match_all('/\n(class ([^ ]+)[^\n]*\n{(.*?)\n})/', $php, $mm, PREG_SET_ORDER)) {
+                        foreach ($mm as $idx => $m) 
+                        {
+                            $className = $m[2];
+                            if ($className <> $file->getFilenameWithoutExtension()) {
+                                // if exactly one, rename php.  Otherwise, create classes and rename to .txt or .orig
+                                if ($idx === 0) {
+//                                    $this->logger->alert(sprintf("Renaming %s to %s", $file->getFilename(), $className.'.php'));
+                                    
+                                } else {
+                                    $newFilename = $file->getPath() . sprintf('/%s.php', $className);
+                                    $this->logger->alert(sprintf("creating $newFilename"));
+                                    
+                                    file_put_contents($newFilename, '<?php' . "\n\n" . $m[1]);
+                                    $newPhp = str_replace($m[1], "// see $newFilename for class $className\n", $newPhp);
+//                                    $this->addNamespace($file);
+                                    // probably a related exception class
+                                    $this->logger->alert(sprintf("Extra class in %s (%s)", $absoluteFilePath, $className));
+                                    
+                                    if ($newPhp <> $php) {
+                                        file_put_contents($absoluteFilePath, $newPhp);
+                                    }
+                                    dd($m);
+                                    if (count($mm) > 2) {
+                                        dd($mm);
+                                    }
+                                    
+                                    dd($className, $file->getFilename());
+                                }
+                            }
+
+                        }
+//                        if (count($mm) == 1) {
+//                            // check that class name matches
+//                            $className = $mm[1];
+//                            if ($className <> $file->getPathname()) {
+//                                dd($className, $file->getPathname());
+//                            }
+//                            dd($mm);
+//                        } else {
+//                            dd($mm);
+//                            
+//                        }
+                    } else {
+                        if ($output->isVerbose()) {
+                            $this->logger->warning("No classes in ", [$absoluteFilePath]);
+                        }
+
                     }
+                    if ($input->getOption('add-namespaces')) {
+                        if (file_put_contents($absoluteFilePath, $php)) {
+                            $io->success("File $absoluteFilePath written.");
+                        }
+                    }
+
+                    
+                    
                 }
                 
                 $fileNameWithExtension = $file->getRelativePathname();
@@ -52,9 +128,6 @@ class AddNamespaceCommand extends Command
 
 
 
-        if ($input->getOption('overwrite')) {
-            // ...
-        }
 
         $io->success('Finished ' . __CLASS__);
 
@@ -88,6 +161,9 @@ class AddNamespaceCommand extends Command
                 'self::$opo_config->get("views_directory")' => 'CA\Views'
             ];
             
+            // there are some files that have multiple classes.  For these, we need to create new files that match the class name.
+            // we may also need to add use statements to any file that reference these classes.
+            
             // really we just want the part between the namespace and the start of the class
             if (preg_match('/<\?php.*?(class|function)/ms', $php, $mm)) {
 
@@ -111,6 +187,10 @@ class AddNamespaceCommand extends Command
 
                 // replace the header
                 $php = str_replace($oldHeader, $header, $php);
+            }  else {
+                // probably a template or some definitions.  OK to keep as include
+//                array_push($keepAsIncludes, $file->getFilename());
+//                $this->logger->error("no class or function found", [$absoluteFilePath]);
             }
 //            foreach ($autoloadMap as $constant=>$prefix) {
 //            }
