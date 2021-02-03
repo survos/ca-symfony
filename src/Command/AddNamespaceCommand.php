@@ -66,18 +66,16 @@ class AddNamespaceCommand extends Command
         $absoluteFilePath = $file->getRealPath();
         
         $php = file_get_contents($absoluteFilePath);
-        if (!preg_match('/namespace /', $php) && (preg_match('|app|', $file->getPath()))) {
+        if ( preg_match('|app|', $file->getPath()) ) {
             // hack! 
             $namespace = str_replace('vendor/collectiveaccess/providence/', '', $file->getPath());
-            $namespace = str_replace('app/lib','CA', $namespace);
+            $namespace = str_replace('app/lib','CA/lib', $namespace);
             $namespace = str_replace('/','\\', $namespace);
             
-            $php = str_replace("<?php", "<?php\n\nnamespace $namespace;\n", $php);
-            
             $autoloadMap = [
-                '__CA_LIB_DIR__' => 'CA\Lib',
+                '__CA_LIB_DIR__' => 'CA\lib',
                 '__CA_APP_DIR__' => 'CA',
-                '__CA_MODELS_DIR__' => 'CA\Model',
+                '__CA_MODELS_DIR__' => 'CA\models',
                 '__CA_BASE_DIR__' => 'CA\Base',
                 '__CA_THEME_DIR__' => 'CA\Themes',
                 '$vs_app_plugin_dir' => 'CA\Plugins',
@@ -92,7 +90,9 @@ class AddNamespaceCommand extends Command
             
             // really we just want the part between the namespace and the start of the class
             if (preg_match('/<\?php.*?(class|function)/ms', $php, $mm)) {
+
                 $oldHeader = $mm[0];
+
 //                dd($header);
                 $header = preg_replace_callback("/(include|require)_once\((.*?)\.[\"']\/(.*?).php[\"']\)/",
                     function($m) use ($autoloadMap) {
@@ -104,6 +104,12 @@ class AddNamespaceCommand extends Command
                         }
                     }, $oldHeader);
 //                dd($header);
+                // get rid of the old namespace
+                $header = preg_replace('/namespace [^ ]+;/', '', $header);
+                // add the new one
+                $header = str_replace("<?php", "<?php\n\nnamespace $namespace;\n", $header);
+
+                // replace the header
                 $php = str_replace($oldHeader, $header, $php);
             }
 //            foreach ($autoloadMap as $constant=>$prefix) {
