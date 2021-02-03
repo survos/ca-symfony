@@ -6,7 +6,7 @@ heroku create my-cool-collection-22
 # free, but hard to import
 heroku addons:create jawsdb:kitefin
 heroku addons:downgrade jawsdb:kitefin
-# $10/month
+# $10/month!  The free version is too small to load the profile.
 heroku addons:create jawsdb:leopard
 
 heroku config:set APP_ENV=prod
@@ -27,4 +27,21 @@ heroku config:set APP_SECRET=2442
 heroku config:set ADMIN_EMAIL=tacman@gmail.com
 heroku config:set APP_DISPLAY_NAME=$repo
 heroku config:set APP_TIMEZONE='America/New_York'
+git push heroku master
+# heroku will give you the url to open.  You'll need to follow the install link.
+```
+
+## Testing
+
+First, load the testing database
+
+```bash
+bin/console doctrine:database:drop --env=test
+bin/console doctrine:database:create --env=test
+SETUP=setup-tests.php support/bin/caUtils install --profile-name testing  --admin-email tacman@gmail.com 
+# someday
+ 
+# someday
+
+
 ```

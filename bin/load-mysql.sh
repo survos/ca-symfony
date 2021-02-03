@@ -1,6 +1,6 @@
 # database must be the MySQL one
 dbname=ca_demo_4
-#mysql -u main -pmain $dbname < ~/data/ca_demo_3.dump
+mysql -u main -pmain $dbname < ~/data/ca_demo_3.dump
 bin/console --env=main doctrine:query:sql "TRUNCATE TABLE ca_change_log_snapshots"
 bin/console --env=main doctrine:query:sql "TRUNCATE TABLE ca_change_log_subjects"
 bin/console --env=main doctrine:query:sql "DELETE FROM ca_change_log"
