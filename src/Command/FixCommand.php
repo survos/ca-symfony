@@ -11,10 +11,15 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Finder\Finder;
 
+/*
+ * Get all project classes.  
+ */
 class FixCommand extends Command
 {
     private $uses = [];
+    private $includes = []; // track each include/require, so we can map to use statement
     private string $usesString;
+    private $autoloadMap = [];
     protected static $defaultName = 'app:fix';
     /**
      * @var LoggerInterface
@@ -25,6 +30,9 @@ class FixCommand extends Command
     {
         parent::__construct($name);
         $this->logger = $logger;
+        
+
+
     }
 
     protected function configure()
@@ -50,7 +58,12 @@ class FixCommand extends Command
         if ($finder->hasResults()) {
             // crazy hack
             foreach ($finder as $file) {
+                $classStructure = (new ClassStructure($file));
+                
+                $this->includes[$classStructure->getFilename()] = $classStructure;
+                
                 $absoluteFilePath = $file->getRealPath();
+                $this->includes[$absoluteFilePath] = $this->getIncludedClasses($file);
                 $this->uses[$this->getNamespace($file)] = $absoluteFilePath;
             }
             
@@ -113,11 +126,6 @@ class FixCommand extends Command
                             }
                         }
                         
-                        
-                        
-                        
-                        
-                        
 //                        if (count($mm) == 1) {
 //                            // check that class name matches
 //                            $className = $mm[1];
@@ -163,8 +171,6 @@ class FixCommand extends Command
 
         $io->success('Finished ' . __CLASS__);
         
-        dd($this->uses);
-
         return Command::SUCCESS;
     }
     
@@ -190,59 +196,9 @@ class FixCommand extends Command
             // hack! 
             $namespace = $this->getNamespace($file);
             
-            $autoloadMap = [
-                '__CA_LIB_DIR__' => 'CA\lib',
-                '__CA_APP_DIR__' => 'CA',
-                '__CA_MODELS_DIR__' => 'CA\models',
-                '__CA_BASE_DIR__' => 'CA\Base',
-                '__CA_THEME_DIR__' => 'CA\Themes',
-                '$vs_app_plugin_dir' => 'CA\Plugins',
-                '$vs_base_widget_dir' => 'CA\Widgets',
-                '$vs_base_refinery_dir' => 'CA\Refinery',
-                '$this->ops_theme_plugins_path' => 'CA\Themes\Plugins',
-                "\$this->opo_config->get('application_plugins')" => 'CA\Plugins',
-                '$this->ops_application_plugins_path' => 'CA\Plugins',
-                '$this->ops_controller_path' => 'CA\Controller',
-                'self::$opo_config->get("views_directory")' => 'CA\Views'
-            ];
-            
             // there are some files that have multiple classes.  For these, we need to create new files that match the class name.
             // we may also need to add use statements to any file that reference these classes.
             
-            // really we just want the part between the namespace and the start of the class
-            if (preg_match('/(<\?php.*?\n)(abstract |final )?(class |function )/ms', $php, $mm)) {
-
-                $oldHeader = $mm[1];
-
-//                dd($header);
-                // we need to add a Use for every class that's in the 
-                $header = preg_replace_callback("/(include|require)_once\((.*?)\.[\"']\/(.*?).php[\"']\)/",
-                    function($m) use ($autoloadMap) {
-                        $prefix=$m[2];
-                        if (array_key_exists($prefix, $autoloadMap)) {
-                            $use = sprintf("%s\%s", $autoloadMap[$prefix], str_replace('/', '\\', $m[3]));
-                            $this->uses[$use] = $m[0];
-                            return sprintf("// use %s; // %s", $use, $m[0]); 
-                        } else {
-                            return $m[0]; // dont replace
-                        }
-                    }, $oldHeader);
-                
-                $header  .=  $this->usesString;
-//                dd($header);
-                // get rid of the old namespace
-                $header = preg_replace('/namespace [^ ]+;/', '', $header);
-                // add the new one
-                $header = str_replace("<?php", "<?php\n\nnamespace $namespace;\n", $header);
-//                dd($header);
-
-                // replace the header
-                $php = str_replace($oldHeader, $header, $php);
-            }  else {
-                // probably a template or some definitions.  OK to keep as include
-//                array_push($keepAsIncludes, $file->getFilename());
-//                $this->logger->error("no class or function found", [$absoluteFilePath]);
-            }
             
 //            foreach ($autoloadMap as $constant=>$prefix) {
 //            }
@@ -265,6 +221,46 @@ class FixCommand extends Command
             return null;
         }
 
+
+    }
+    
+    private function getIncludedClasses($php): array
+    {
+        if (preg_match('/(<\?php.*?\n)(abstract |final )?(class |function )/ms', $php, $mm)) {
+
+            $oldHeader = $mm[1];
+            // 
+
+//                dd($header);
+            // we need to add a Use for every class that's in the 
+            $header = preg_replace_callback("/(include|require)_once\((.*?)\.[\"']\/(.*?).php[\"']\)/",
+                function($m)  {
+                    $prefix=$m[2];
+                    if (array_key_exists($prefix, $this->autoloadMap)) {
+                        $use = sprintf("%s\%s", $this->autoloadMap[$prefix], str_replace('/', '\\', $m[3]));
+                        $this->uses[$use] = $m[0];
+                        return sprintf("// use %s; // %s", $use, $m[0]);
+                    } else {
+                        return $m[0]; // dont replace
+                    }
+                }, $oldHeader);
+            
+
+            $header  .=  sprintf("// all uses!\n%s\n//ENDOFUSES\n\n", $this->usesString);
+//                dd($header);
+            // get rid of the old namespace
+//            $header = preg_replace('/namespace [^ ]+;/', '', $header);
+            // add the new one
+//            $header = str_replace("<?php", "<?php\n\nnamespace $namespace;\n", $header);
+//                dd($header);
+
+            // replace the header
+            $php = str_replace($oldHeader, $header, $php);
+        }  else {
+            // probably a template or some definitions.  OK to keep as include
+//                array_push($keepAsIncludes, $file->getFilename());
+//                $this->logger->error("no class or function found", [$absoluteFilePath]);
+        }
 
     }
 }

@@ -1,6 +1,26 @@
 {% extends "base.html.twig" %}
 
 {% block body %}
+    {% for root, classes in includes  %}
+    <h3>{{ root }}</h3>
+
+    <ul>
+    {% for ns, classInfo in classes %}
+        <li>{{ ns }} ({{ classInfo.filename }})
+            <ol>
+                {% for i in classInfo.includes %}
+                    <li>{{ i }}</li>
+                {% endfor %}
+            </ol>
+        </li>
+    {% endfor %}
+    </ul>
+    {% endfor %}
+    
+{% endblock %}
+
+
+{% block install %}
     Install status.
     <a href="{{ path('app_ca_index') }}">Go to Providence Home Page</a>
 {% endblock %}

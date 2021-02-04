@@ -2,10 +2,12 @@
 
 namespace App\Controller;
 
+use App\Command\ClassStructure;
 use App\Repository\CaObjectsRepository;
 use App\Repository\ProfileRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
+use Symfony\Component\Finder\Finder;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -45,7 +47,17 @@ class AppController extends AbstractController
      */
     public function index(Request $request): Response
     {
+        // test php extraction
+        $finder = new Finder();
+        $dir = '/home/tac/survos/ca-symfony/vendor/collectiveaccess/providence/app/lib';
+        $finder->files()->in($dir)->files()->name('*.php');
+        foreach ($finder as $file) {
+            $classStructure = (new ClassStructure($file, $dir));
+            $includes[$classStructure->getPath()][$classStructure->getNs()] = $classStructure;
+        }
+
         return $this->render('app/homepage.html.twig', [
+            'includes' => $includes
 //            'profiles' => $profileRepository->getBasicData()
         ]);
 

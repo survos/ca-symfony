@@ -11,12 +11,17 @@
 mkdir -p vendor/collectiveaccess/providence/media/collectiveaccess
 chmod +rw vendor/collectiveaccess/providence/media/collectiveaccess
 cd vendor/collectiveaccess/providence/ && git checkout app && cd ../../..
-find vendor/collectiveaccess/providence/app -type f -exec php -r 'file_put_contents($argv[1], preg_replace("/\n *((abstract |final )?class )/", "\n$1", file_get_contents($argv[1])));' {} \;
+# make sure line with class is in the first column
+find vendor/collectiveaccess/providence/app/lib -type f -exec php -r 'file_put_contents($argv[1], preg_replace("/\n *((abstract |final )?class )/", "\n$1", file_get_contents($argv[1])));' {} \;
 #exit 1;
 #find vendor/collectiveaccess/providence/app/lib/Export/Base*.php -type f -exec sed  -e ':a;N;$!ba;s/\n *((final|abstract)? +class)/\n$1/g' {} \;
-tools/php-cs-fixer/vendor/bin/php-cs-fixer fix vendor/collectiveaccess/providence/app/ --rules=no_unused_imports
+# moves end of class } to the first column
+tools/php-cs-fixer/vendor/bin/php-cs-fixer fix vendor/collectiveaccess/providence/app/ 
 bin/console c:c
-bin/console app:fix
+exit 1;
+
+bin/console app:fix vendor/collectiveaccess/providence/app -v
+#tools/php-cs-fixer/vendor/bin/php-cs-fixer fix vendor/collectiveaccess/providence/app/ --rules=no_unused_imports
 #vendor/bin/phpstan analyze  vendor/collectiveaccess/providence/app --memory-limit=1G --level=0 --autoload-file=config/setup.php
 
 #sed -i 's/MediaUrl\Plugins/Plugins\MediaUrl/g' vendor/collectiveaccess/providence/app/lib/Plugins/MediaUrl/*.php 
