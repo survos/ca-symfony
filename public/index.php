@@ -15,10 +15,12 @@ if ($_SERVER['APP_DEBUG']) {
     Debug::enable();
 }
 
+// we need to define the constants, not include the whole setup
+//require_once "../config/providence-setup.php"; // @todo: what should this be called??
+
 $kernel = new Kernel($_SERVER['APP_ENV'], (bool) $_SERVER['APP_DEBUG']);
 $request = Request::createFromGlobals();
-$response = $kernel->handle($request);
-
+//$response = $kernel->handle($request);
 $response = $kernel->handle($request);
 
 if ($response->getStatusCode() !== 404) {

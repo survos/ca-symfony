@@ -1,6 +1,10 @@
 # database must be the MySQL one
 dbname=ca_demo_4
+# sudo mysql | CREATE USER 'main'@'localhost' IDENTIFIED BY 'main';
+# GRANT ALL PRIVILEGES ON *.* TO 'mainc'@'localhost';
+bin/console doctrine:database:create --if-not-exists
 mysql -u main -pmain $dbname < ~/data/ca_demo_3.dump
+
 bin/console --env=main doctrine:query:sql "TRUNCATE TABLE ca_change_log_snapshots"
 bin/console --env=main doctrine:query:sql "TRUNCATE TABLE ca_change_log_subjects"
 bin/console --env=main doctrine:query:sql "DELETE FROM ca_change_log"

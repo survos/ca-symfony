@@ -1,7 +1,7 @@
 #wget https://github.com/collectiveaccess/providence/archive/1.7.9.zip && unzip 1.7.9.zip -d public
 #https://github.com/collectiveaccess/providence/archive/1.7.9.zip
 #git clone --depth 1 git@github.com:collectiveaccess/providence public/providence
-#cp config/providence-setup.php vendor/collectiveaccess/providence/setup.php
+#cp config/setup.php vendor/collectiveaccess/providence/setup.php
 #rm -Rf vendor/collectiveaccess/providence/app/tmp
 #exit 1;
 # from https://github.com/FriendsOfPHP/PHP-CS-Fixer
@@ -12,15 +12,14 @@ mkdir -p vendor/collectiveaccess/providence/media/collectiveaccess
 chmod +rw vendor/collectiveaccess/providence/media/collectiveaccess
 cd vendor/collectiveaccess/providence/ && git checkout app && cd ../../..
 # make sure line with class is in the first column
-find vendor/collectiveaccess/providence/app/lib -type f -exec php -r 'file_put_contents($argv[1], preg_replace("/\n *((abstract |final )?class )/", "\n$1", file_get_contents($argv[1])));' {} \;
+#find vendor/collectiveaccess/providence/app -type f -exec php -r 'file_put_contents($argv[1], preg_replace("/\n\s+((abstract |final |public )?(trait |class |interface ))/", "\n$1", file_get_contents($argv[1])));' {} \;
+#~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix vendor/collectiveaccess/providence/app
 #exit 1;
 #find vendor/collectiveaccess/providence/app/lib/Export/Base*.php -type f -exec sed  -e ':a;N;$!ba;s/\n *((final|abstract)? +class)/\n$1/g' {} \;
-# moves end of class } to the first column
-tools/php-cs-fixer/vendor/bin/php-cs-fixer fix vendor/collectiveaccess/providence/app/ 
-bin/console c:c
-exit 1;
+# moves end of class } to the first column, to match beginning (above).  Can probably do more here, too.
+#bin/console c:c
 
-bin/console app:fix vendor/collectiveaccess/providence/app -v
+bin/console app:fix vendor/collectiveaccess/providence/app -vv
 #tools/php-cs-fixer/vendor/bin/php-cs-fixer fix vendor/collectiveaccess/providence/app/ --rules=no_unused_imports
 #vendor/bin/phpstan analyze  vendor/collectiveaccess/providence/app --memory-limit=1G --level=0 --autoload-file=config/setup.php
 

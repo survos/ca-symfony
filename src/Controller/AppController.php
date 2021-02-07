@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Command\ClassStructure;
 use App\Repository\CaObjectsRepository;
 use App\Repository\ProfileRepository;
+use App\Services\FixNamespaceService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Finder\Finder;
@@ -25,11 +26,10 @@ class AppController extends AbstractController
     public function legacyIndex(Environment $twig, RouterInterface $router, ParameterBagInterface $bag, Request $request, $oldRoute=null): Response
     {
         $root = $bag->get('kernel.project_dir') . '/public/providence';
-       $result =  require_once $root . '/index.php';
+        $result =  require_once $root . '/index.php';
 
         dd($result);
         dd($root, $oldRoute);
-
     }
 
     /**
@@ -45,19 +45,17 @@ class AppController extends AbstractController
     /**
      * @Route("/", name="app_homepage")
      */
-    public function index(Request $request): Response
+    public function index(Request $request, ParameterBagInterface $bag, FixNamespaceService $fixNamespaceService): Response
     {
-        // test php extraction
+        // test php extraction.  Needs to be a a service, since the relative path changes if on the command line.
         $finder = new Finder();
-        $dir = '/home/tac/survos/ca-symfony/vendor/collectiveaccess/providence/app/lib';
-        $finder->files()->in($dir)->files()->name('*.php');
-        foreach ($finder as $file) {
-            $classStructure = (new ClassStructure($file, $dir));
-            $includes[$classStructure->getPath()][$classStructure->getNs()] = $classStructure;
-        }
+        $dir = $bag->get('kernel.project_dir') . '/vendor/collectiveaccess/providence/app';
+
+        $files = $fixNamespaceService->fix($dir);
+
 
         return $this->render('app/homepage.html.twig', [
-            'includes' => $includes
+            'files' => $files
 //            'profiles' => $profileRepository->getBasicData()
         ]);
 
