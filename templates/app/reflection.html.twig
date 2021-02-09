@@ -1,7 +1,22 @@
 {% extends "base.html.twig" %}
 
 {% block body %}
-    {% for filename, classInfo in files  %}
+    <div class="row">
+        <div class="col-md-6">
+            {{ block('files') }}
+        </div>
+        <div class="col-md-6">
+            {{ block('classes') }}
+        </div>
+    </div>
+{% endblock %}
+
+{% block classes %}
+{{ dump(classes) }}
+{% endblock %}
+
+{% block xclasses %}
+    {% for filename, classInfo in classes  %}
     <h3>{{ filename }} {{ classInfo.status }}</h3>
     <ul>
         <li><span title="{{ classInfo.filename }}">{{ classInfo.ns }}</span><sup>{{ classInfo.lineCount }}</sup>
@@ -21,8 +36,17 @@
     
 {% endblock %}
 
-
-{% block install %}
-    Install status.
-    <a href="{{ path('app_ca_index') }}">Go to Providence Home Page</a>
+{% block files %}
+    <table class="table">
+        <tbody>
+        {% for file in files %}
+            <tr>
+                <td>
+                    {{ file }}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
 {% endblock %}
+

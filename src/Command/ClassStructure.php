@@ -6,8 +6,10 @@ namespace App\Command;
 
 class ClassStructure
 {
+    const RAW_INCLUDE = 'raw-include'; // continue to use include, not "use"
     private string $filename;
     private string $ns;
+    private string $docComment = '';
     private string $php;
     private ?string $originalPhp;
     private string $classname;
@@ -18,6 +20,62 @@ class ClassStructure
     private ?string $header = null;
     private string $originalheader;
     private string $status;
+    private int $startLine;
+    private int $endLine;
+
+    /**
+     * @return int
+     */
+    public function getStartLine(): int
+    {
+        return $this->startLine;
+    }
+
+    /**
+     * @param int $startLine
+     * @return ClassStructure
+     */
+    public function setStartLine(int $startLine): ClassStructure
+    {
+        $this->startLine = $startLine;
+        return $this;
+    }
+
+    /**
+     * @return int
+     */
+    public function getEndLine(): int
+    {
+        return $this->endLine;
+    }
+
+    /**
+     * @param int $endLine
+     * @return ClassStructure
+     */
+    public function setEndLine(int $endLine): ClassStructure
+    {
+        $this->endLine = $endLine;
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getDocComment(): string
+    {
+        return $this->docComment;
+    }
+
+    /**
+     * @param string $docComment
+     * @return ClassStructure
+     */
+    public function setDocComment(string $docComment): ClassStructure
+    {
+        $this->docComment = $docComment;
+        return $this;
+    }
 
     /**
      * @return string
@@ -133,27 +191,35 @@ class ClassStructure
         // total hack!
         if (!defined('__CA_BASE_DIR__')) {
             // hack for installing via composer
-            define('__CA_BASE_DIR__', realpath(__DIR__ . '/../../vendor/collectiveaccess/providence'));
-            define('__CA_APP_NAME__', 'ca');
+//            define('__CA_BASE_DIR__', realpath(__DIR__ . '/../../vendor/collectiveaccess/providence'));
+            define('__CA_BASE_DIR__', $x=realpath($y = __DIR__ . '/../../../pr'));
+//            dd($x, $y);
             if (!is_dir(__CA_BASE_DIR__)) {
-                throw new \Exception(__CA_MODELS_DIR__ . ' is not a valid directory');
+                throw new \Exception(__CA_BASE_DIR__ . ' is not a valid directory');
             }
+            define('__CA_APP_NAME__', 'ca');
             include __CA_BASE_DIR__ . '/app/helpers/post-setup.php';
         }
         $this->filename = $file->getRealPath();
-        $this->originalPhp = file_get_contents($this->filename);
+//        $this->originalPhp = file_get_contents($this->filename);
         $this->lineCount = count(file($this->filename)) - 1;;
 
 
         $this->path = str_replace($dirPathToRemove, '', $file->getRealPath());
 
-        $this->ns = str_replace('.php', '', $this->path);
-        $this->ns = str_replace('/', '\\', $this->ns);
-        $this->ns = ltrim($this->ns, '\\');
+//        $this->ns = str_replace('.php', '', $this->path);
+//        $this->ns = str_replace('/', '\\', $this->ns);
+//        $this->ns = ltrim($this->ns, '\\');
+        $this->setNs('CA\\'.$this->getNamespaceFromPath(pathinfo($file->getRealPath(), PATHINFO_DIRNAME)));
+
         //
 //        $this->setIncludes($this->processHeader());
 //        dd($this->getIncludes());
 //        $this->extractHeader();
+    }
+
+    public function addInclude($filename, $namespace) {
+        $this->includes[$filename] = $namespace;
     }
 
 
@@ -338,16 +404,24 @@ class ClassStructure
         }
     }
 
-    public function getNamespaceFromFilename($filename): ?string
+    public function getFilenameToWrite()
+    {
+        $file = (new \SplFileInfo($this->getFilename()));
+        $path = str_replace('/home/tac/survos/ca/vendor/collectiveaccess/providence', '', $file->getPath());
+        return $path . '/' . $this->getClassname() . '.php';
+    }
+    public function getNamespaceFromPath($path): ?string
     {
         $namespace = null;
-        if (preg_match('|app|', $filename)) {
+        if (preg_match('|app|', $path)) {
             // hack!
-//            $namespace = str_replace('vendor/collectiveaccess/providence/', '', $filename);
+            $namespace = $path;
+            $namespace = str_replace('/home/tac/survos/ca/', '', $namespace);
+            $namespace = str_replace('vendor/collectiveaccess/providence/', '', $namespace);
             // use the map?  Or just make everything CA?
 //            $namespace = str_replace('app/lib', 'CA/lib', $namespace);
 
-            $namespace = preg_replace('|^.*?/app/|', 'CA\\', $filename);
+            $namespace = preg_replace('|^.*?/app/|', 'CA\\', $namespace);
             $namespace = str_replace('/', '\\', $namespace);
             $namespace = str_replace('.php', '', $namespace);
         }
@@ -358,6 +432,24 @@ class ClassStructure
     public function top($n=1800)
     {
         return substr($this->originalPhp, 0, $n);
+    }
+
+    public function getClassPhp(): array
+    {
+        return $this->getClassContent($this->getStartLine()-1, $this->getEndLine() - $this->getStartLine()+1);
+    }
+
+    public function getClassContent($start=0, $end=false): array
+    {
+        return array_slice(file($this->getFilename()), $start, $end ? $end : INF);
+    }
+
+    public function getClassPhpText()
+    {
+        $php  = ltrim(trim(join("", $this->getClassPhp())));
+        // hacks that could be cleaner...
+        $php = str_replace('extends Exception', 'extends \\Exception', $php);
+        return $php;
     }
 
     public function createNewHeader()
@@ -410,6 +502,11 @@ class ClassStructure
 //                $this->logger->error("no class or function found", [$absoluteFilePath]);
         }
         return $this->includes;
+    }
+    
+    public function isRawInclude(): bool
+    {
+        return $this->getStatus() === self::RAW_INCLUDE;
     }
 
 

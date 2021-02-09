@@ -42,7 +42,7 @@ class FixCommand extends Command
     {
         $this
             ->setDescription('Change include/require to namespaces')
-            ->addArgument('dir', InputArgument::OPTIONAL, 'Directory to process', "vendor/collectiUveaccess/providence/app/")
+            ->addArgument('dir', InputArgument::OPTIONAL, 'Directory to process', "vendor/collectiveaccess/providence/")
             ->addOption('expand-classes', null, InputOption::VALUE_NONE, 'expand files that have multiple classes')
             ->addOption('add-namespaces', null, InputOption::VALUE_NONE, 'add namespace to top of file')
         ;

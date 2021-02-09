@@ -31,8 +31,11 @@ class FixNamespaceService
             ->resolve($options);
 
         $finder = new Finder();
-        $finder->files()->in($dir)->files()->name('post-setup.php')->filter(
-            fn(\SplFileInfo $file) => !preg_match('{/(views|tmp|templates|printTemplates)/}', $file->getRealPath())
+        $finder->files()->in($dir)->files()->name('*.php')->filter(
+
+            fn(\SplFileInfo $file) =>
+//                dd($file) &&
+            !preg_match('{/(views|tmp|templates|providence/vendor|printTemplates)/}', $file->getRealPath())
         );
 
         // check if there are any search results
@@ -61,11 +64,14 @@ class FixNamespaceService
 
         reset($files);
         foreach ($files as $filename=>$classStructure) {
-                if ($this->processHeader($classStructure, $files)
+                if ($this->processHeader($classStructure, $files))
                 {
                     $absoluteFilePath = $filename;
                     if ($classStructure->getHeader()) {
                         $newPhp = str_replace($classStructure->getOriginalheader(), $classStructure->getHeader(), $classStructure->getOriginalPhp());
+                        $newPhp = trim($newPhp); // get rid of spaces.
+                        $newPhp = preg_replace('|\?>$|', '', $newPhp);
+//                        dd($newPhp);
 //                        file_put_contents($absoluteFilePath, $this->addNamespace($file, $newPhp));
                         $this->logger->info("Adding namespace and header", [$absoluteFilePath]);
                     } else {
@@ -171,8 +177,8 @@ class FixNamespaceService
     private function getNamespace(\SplFileInfo $file): ?string
     {
         $namespace = null;
-        if (preg_match('|app|', $file->getPath())) {
             // hack!
+        if (preg_match('|app|', $file->getPath())) {
             $namespace = str_replace('vendor/collectiveaccess/providence/', '', $file->getPath());
             $namespace = str_replace('app/lib', 'CA/lib', $namespace);
             $namespace = str_replace('/', '\\', $namespace);
@@ -253,27 +259,37 @@ class FixNamespaceService
             foreach ($mm as $m) {
                 $ca_constant = $m[2];
                 if (!defined($ca_constant)) {
-                    throw new \Exception($ca_constant . " not defined, " . $cs->filename);
+                    throw new \Exception($ca_constant . " not defined, " . $cs->getFilename());
                 }
-                dump($m);
 
                 $val = constant($ca_constant);
                 $includedFile = $val . '/' . $m[3] . '.php';
+                // files should have all the files 
+                /** @var ClassStructure $csInc */
+                $csInc = $files[$includedFile];
+                // if it's missing, then treat it as a raw include
+
+//                assert($csInc, $cs->getFilename() . " Missing " . $includedFile );
+//                dd($csInc->getStatus(), $includedFile);
+                
                 $ns = $cs->getNamespaceFromFilename($includedFile);
                 // don't include yourself
-                if ($includedFile <> $cs->getFilename()) {
-                    // need to use the ns + classname!
-                    $includes[$includedFile] = $ns;
-                    dump($includedFile, $includes);
-                    // until we get function import working, we should just use the include_once.
-                    if (!array_key_exists($includedFile, $includes)) {
-                        $header = str_replace($m[0], "use $ns; // $m[3]", $header);
-//                            $seen[$ns] = $includedFile;
-                    } else {
-                        $header = str_replace($m[0], "// DUPLICATE $m[3]", $header);
-                    }
-                } else {
+                if ($includedFile ===  $cs->getFilename()) {
                     $header = str_replace($m[0], "// THIS FILE, SO DONT USE NAMESPACE; // $m[0]", $header);
+                } else {
+                    if (empty($csInc) || $csInc->isRawInclude()) {
+                        // 
+                    } else {
+//                    dump($includedFile, $cs->getFilename(), $ns, $cs->getNs());
+                        // need to use the ns + classname!
+                        if (!array_key_exists($includedFile, $includes)) {
+                            $header = str_replace($m[0], "use $ns; // $m[3]", $header);
+//                            $seen[$ns] = $includedFile;
+                        } else {
+                            $header = str_replace($m[0], "// DUPLICATE $m[3]", $header);
+                        }
+                    }
+                    $includes[$includedFile] = $ns;
                 }
             }
             // hack.  While we're in here, fix the header.
@@ -281,7 +297,7 @@ class FixNamespaceService
 
 //                    dd($m, $cs->includes, $val);
             $cs->setIncludes($includes);
-            dd($includes, $header);
+//            dd($includes, $header);
         }
 
 //            dd($namespace, $cs->path);
@@ -289,7 +305,7 @@ class FixNamespaceService
 
         if ($cs->getStatus() <> 'raw-include') {
             $header = preg_replace('/namespace [^ ]+;/', '', $header);
-            $header = str_replace("<?php", sprintf("<?php\n\n// %s\n\nnamespace %s;\n\n", $cs->path, $namespace), $header);
+            $header = str_replace("<?php", sprintf("<?php\n\n// %s\n\nnamespace %s;\n\n", $cs->getPath(), $namespace), $header);
         }
         $cs->setHeader($header);
 //                dd($mm);
