@@ -289,14 +289,14 @@ class FixNamespaceService
                             $header = str_replace($m[0], "// DUPLICATE $m[3]", $header);
                         }
                     }
-                    $includes[$includedFile] = $ns;
+//                    $includes[$includedFile] = $ns;
                 }
             }
             // hack.  While we're in here, fix the header.
             // make sure not to include the use for THIS namespace.
 
 //                    dd($m, $cs->includes, $val);
-            $cs->setIncludes($includes);
+//            $cs->setIncludes($includes);
 //            dd($includes, $header);
         }
 

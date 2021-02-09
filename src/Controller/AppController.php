@@ -76,6 +76,10 @@ class AppController extends AbstractController
 //        ]);
     }
 
+    private function removeDir($str) {
+        return str_replace($this->bag->get('kernel.project_dir'), '', $str);
+    }
+
     /**
      * @Route("/reflect", name="app_reflection")
      */
@@ -100,18 +104,21 @@ class AppController extends AbstractController
                 return $file->isFile() && !preg_match('/providence\/(vendor|tests)/', $file->getRealPath()) && preg_match('/\.(php)$/i', $file->getFilename());
             });
 
-        $finder->exclude('providence/vendor')->files()->name('*.php')->in([])
-            ->filter(
-            fn(\SplFileInfo $file) =>  preg_match('/lib/', ($file->getRealPath() )) // && dump($file->getRealPath(), preg_match('/lib/', $file->getRealPath()) ))
-//            dump($file->getRealPath(), preg_match('{/(ca/vendor|ca/var/|cache|views|tmp|templates|ca/bin/|providence/vendor|printTemplates)/}', $file->getRealPath())) &&
-//            !preg_match('{/(ca/vendor|ca/var/|cache|views|tmp|templates|ca/bin/|providence/vendor|printTemplates)/}', $file->getRealPath())
-        )
-        ;
+
+
+//        $finder->exclude('providence/vendor')->files()->name('*.php')->in([])
+//            ->filter(
+//            fn(\SplFileInfo $file) =>  preg_match('/lib/', ($file->getRealPath() )) // && dump($file->getRealPath(), preg_match('/lib/', $file->getRealPath()) ))
+////            dump($file->getRealPath(), preg_match('{/(ca/vendor|ca/var/|cache|views|tmp|templates|ca/bin/|providence/vendor|printTemplates)/}', $file->getRealPath())) &&
+////            !preg_match('{/(ca/vendor|ca/var/|cache|views|tmp|templates|ca/bin/|providence/vendor|printTemplates)/}', $file->getRealPath())
+//        )
+//        ;
+
 //        dump($finder->count(), array_slice(iterator_to_array($finder), 0, 20));
 //        dd($finder);
 
         // check that it's not already included first
-        $includedFiles = array_filter(get_included_files(), fn(string $filename) => preg_match('{/vendor/collectiveaccess/}', $filename) && !preg_match('{/providence/vendor|app/tmp}', str_replace($dir, '', $filename)));
+        $includedFiles = array_filter(get_included_files(), fn(string $filename) => preg_match('{/vendor/collectiveaccess/}', $filename) && !preg_match('{/providence/vendor|/tmp}', str_replace($dir, '', $filename)));
 //        dd($includedFiles);
 
         set_error_handler(function ($errno, $errstr, $errfile, $errline ) {
@@ -123,7 +130,7 @@ class AppController extends AbstractController
         foreach ($finder as $file) {
             $absolutePath =  $file->getRealPath();
 
-            if (preg_match('/class ([a-z_0-9]+)/i', file_get_contents($absolutePath), $m)) {
+            if (preg_match('/class ([A-Za-z_0-9]+) /i', file_get_contents($absolutePath), $m)) {
                 $foundClass = $m[1];
                 $this->logger->warning($file->getRealPath(), );
                     // the problem is that things like SetController exist in multiple directories (thus the need for namespaces)
@@ -136,7 +143,7 @@ class AppController extends AbstractController
                                 // we need to ignore if the requires are missing, like https://github.com/collectiveaccess/providence/blob/develop/app/controllers/find/SearchObjectsBuilderController.php#L28
                                 if (!in_array($file->getFilenameWithoutExtension(), ['HTTPHeaders', 'get-events', '_autoload', 'Shibboleth', 'ShibbolethAuthAdapter', 'AuthController', 'BagIt', 'SearchObjectsBuilderController']))
                                 {
-                                    $this->logger->warning("trying " . $absolutePath);
+                                    $this->logger->warning("require_once " . $absolutePath);
                                     require_once($absolutePath); // to load the declared classes
                                 }
                             }
@@ -147,6 +154,10 @@ class AppController extends AbstractController
                 } catch (\Exception $exception) {
                     $this->logger->warning($exception->getMessage(), [$file->getRealPath()]);
                 }
+            } else {
+//                dump($absolutePath, preg_match('/class ([A-Za-z_0-9]+) /i', file_get_contents($absolutePath)));
+                // we could either add the class (static?) and make the
+                $this->logger->warning("Skipping " . $absolutePath);
             }
             $absolutePath = $file->getRealPath();
             $shortFilename = str_replace($dir, '', $absolutePath);
@@ -156,20 +167,24 @@ class AppController extends AbstractController
                 'absoluteFilename' => $absolutePath,
                 'classes' => []
             ];
+
 //            if ($file->getFilenameWithoutExtension() == 'ModelController') {
 //                dd($files[$absolutePath], $absolutePath);
 //            }
         }
 
+//        dd($files['/home/tac/survos/ca/vendor/collectiveaccess/providence/app/helpers/utilityHelpers.php']);
+
 //        $includedFiles = array_filter(get_included_files(), fn(string $filename) => preg_match('{/vendor/collectiveaccess/}', $filename) && !preg_match('{/providence/vendor|app/tmp}', str_replace($dir, '', $filename)));
 
 
         $fileToClass = [];
-        foreach (get_declared_classes() as $class) {
+        $classesToWrite = array_filter(get_declared_classes(), fn($className) => preg_match('//', $className));
+        foreach ($classesToWrite as $class) {
             $r = (new \ReflectionClass($class));
 
             // if this is a file with multiple classes, break them apart
-            if (!$r->isInternal()) {
+            if ($r->isUserDefined()) {
                 if (!preg_match('{/providence/}', $r->getFileName()) ) {
                     continue;
                 }
@@ -202,13 +217,40 @@ class AppController extends AbstractController
                     ->setClassname($class)
                     ->setStartLine($r->getStartLine())
                     ->setEndLine($r->getEndLine())
+                    ->setExtends($r->getParentClass()?:null)
+                    ;
+
+//                if ($class == 'ModelController') {
+//                    dd($r->getExtension(), $r, $r->getProperties(), $r->getParentClass());
+//                    dd($cs, $r);
+//                }
+
 //                    ->setDocComment($r->getDocComment())
 //                    ->setPhp(join("\n", array_slice($f['phpLines'], $startLine, $endLine)))
                 ;
 
                 $newHeader = [];
+                if ($class  == 'BaseServiceController') {
+//                    dd($r, $r->getFileName(), $includedFileInfo, $includedFileInfo['classes']);
+                }
+
+                if ($parent = $r->getParentClass()) {
+                    if (!$parent->isInternal()) {
+                        // to get the classes that may have been included from this!
+                        $parentFile = $files[$parent->getFileName()];
+                        $parentNs = ClassStructure::getNamespaceFromPath(pathinfo($parent->getFileName(), PATHINFO_DIRNAME)) . '/' . $parent->getName();
+                        $cs->addInclude($parentNs, $parent->getFileName());
+//                        $useNs = $parentNs . '\\' . $parent->getName() . ' // ' . $parent->getFileName(), $parent->getFileName());
+//                        array_push($newHeader, sprintf('use %s\\%s; // extends %s %s', $parentNs, $parent->getName(),  $parent->getName(), $parent->getFileName() ));
+                        // dd($parentFile, $parent, $parent->getFileName(), $parentNs);
+//                        dd($newHeader);
+                    }
+                }
+//                dd($r, $files[$r->getFileName()], $cs);
+
                 foreach ($cs->getClassContent(0, $r->getStartLine()-2) as $line) {
                     $pattern = "/(include|require)_once\((.*?)\.[\"']\/(.*?).php[\"']\)/";
+
                     // walk through the includes and create namespaces from them.  Might not be any.
                     if (preg_match($pattern, $line, $m)) {
 
@@ -224,35 +266,50 @@ class AppController extends AbstractController
                         // hack!
                         $includedFile = str_replace('{$format}', 'SimpleZip', $includedFile);
                         $includedFile = str_replace('{$transport}', 'sFTP', $includedFile);
+                        $includedSplFile = new \SplFileInfo($includedFile);
 
                         array_push($newHeader, " // ($m[0], $includedFile");
-                        // files should have all the files
-                        $rClass = $files[$includedFile] ?? null;
+
+                        $cs->addInclude(ClassStructure::getNamespaceFromPath(pathinfo($includedFile, PATHINFO_DIRNAME)) . '/' . $includedSplFile->getFilename(), $includedFile);
+                        // files should have all the files, except
+                        if (in_array($m[3], ['vendor/autoload'])) {
+                            continue; // autoload will happen outside the classes now.
+                        }
 
 
-                        if (empty($rClass)) {
+                        assert(array_key_exists($includedFile, $files), $m[3] . ':' . $cs->getFilename() . ' ' . $includedFile);
+//                        assert(count($files[$includedFile]['classes']),  $cs->getFilename() . ' ' . $includedFile);
+                        $includedFileInfo = $files[$includedFile];
+//                        dump($m, $includedFileInfo);
+
+                        if (empty($includedFileInfo)) {
                             if (!in_array($m[3], ['vendor/autoload'])) {
                                 dd($m[0], $m, $includedFile, $line);
                             } else {
+                                dd($m[0], $m, $includedFile, $line);
                                 continue;
                             }
                         }
-//                        assert(is_array($rClass['classes']), dump($rClass));
 
-                        foreach ($rClass['classes'] as $shortName => $c) {
-                            $cs->addInclude($useNs = $c->getNs() . '\\' . $shortName, $includedFile);
-                            array_push($newHeader, "use $useNs; // from $includedFile");
+                        $cs->addInclude($useNs = $cs->getNs(), $cs->getFilename());
+                        foreach ($includedFileInfo['classes'] as $shortName => $c) {
+                            $cs->addInclude($useNs = $c->getNs() . '/' . $shortName, $includedFile);
                         }
+//                        assert(is_array($includedFileInfo['classes']), dump($includedFileInfo));
 
-                        if ($cs->getClassname() == 'ca_users') {
-                            // dd($includedFile, $r->getFileName(), $m, $rClass, $rClass['classes']);
+                    }
+                }
+
+                if (count($cs->getIncludes())) {
+                    foreach ($cs->getIncludes() as $useNs=>$fn) {
+                        // skip if it it's also the name of the namespace
+                        if ($useNs <> $cs->getNs()) {
+                            array_push($newHeader, "use $useNs; // from ".$this->removeDir($fn));
                         }
                     }
-                    $cs->setHeader(join("\n", $newHeader));
-                }
-                if (count($cs->getIncludes())) {
 //                    dd($cs->getIncludes());
                 }
+                $cs->setHeader(join("\n", $newHeader));
 //                dd($cs->getClassPhp());
 
                 // we somehow lose 'extra' after assignment
@@ -300,11 +357,16 @@ class AppController extends AbstractController
                             dd($newDir, $e->getMessage());
                         }
                     }
+
+                    if ($cs->getExtends()) {
+//                        dd($cs->getExtends());
+                    }
                     // the new php replaces the required_once with the use statements, recursively...
                     // we can also figure out what use statements are necessary by searching the classes for their methods.
-                    $newPhp = sprintf("<?php\n\nnamespace %s;\n%s\n\n%s", $cs->getNs(), $cs->getHeader(), $cs->getClassPhpText());
+                    $newPhp = sprintf("<?php // %s\n\nnamespace %s;\n%s\n\n%s", $newFilename, $cs->getNs(), $cs->getHeader(), $cs->getClassPhpText());
                     array_push($newFiles, $newFilename);
                     file_put_contents($newFilename, $newPhp);
+//                    dd($newFilename, $newPhp);
                 }
             }
 //            dd($f);
@@ -340,10 +402,10 @@ class AppController extends AbstractController
                         $val = constant($ca_constant);
                         $includedFile = $val . '/' . $m[3] . '.php';
                         // files should have all the files
-                        $rClass = $fileToClass[$includedFile];
+                        $includedFileInfo = $fileToClass[$includedFile];
 
 
-                        dd($m, $rClass);
+                        dd($m, $includedFileInfo);
 
                     }
                 }

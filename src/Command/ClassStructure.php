@@ -20,6 +20,26 @@ class ClassStructure
     private ?string $header = null;
     private string $originalheader;
     private string $status;
+    private ?\ReflectionClass $extends;
+
+    /**
+     * @return string
+     */
+    public function getExtends(): ?\ReflectionClass
+    {
+        return $this->extends;
+    }
+
+    /**
+     * @param string $extends
+     * @return ClassStructure
+     */
+    public function setExtends(?\ReflectionClass $extends): ClassStructure
+    {
+        $this->extends = $extends;
+        return $this;
+    }
+
     private int $startLine;
     private int $endLine;
 
@@ -210,7 +230,7 @@ class ClassStructure
 //        $this->ns = str_replace('.php', '', $this->path);
 //        $this->ns = str_replace('/', '\\', $this->ns);
 //        $this->ns = ltrim($this->ns, '\\');
-        $this->setNs('CA\\'.$this->getNamespaceFromPath(pathinfo($file->getRealPath(), PATHINFO_DIRNAME)));
+        $this->setNs($this->getNamespaceFromPath(pathinfo($file->getRealPath(), PATHINFO_DIRNAME)));
 
         //
 //        $this->setIncludes($this->processHeader());
@@ -218,8 +238,12 @@ class ClassStructure
 //        $this->extractHeader();
     }
 
-    public function addInclude($filename, $namespace) {
-        $this->includes[$filename] = $namespace;
+    public function addInclude(string $namespace, string $filename) {
+//        dump($namespace, $filename);
+        $namespace = str_replace('/', '\\', $namespace); // from includes.
+        $namespace = str_replace('.php', '', $namespace); // from includes.
+        assert(!preg_match('/\//', $namespace), $namespace . " " . $filename);
+        $this->includes[$namespace] = $filename;
     }
 
 
@@ -263,6 +287,7 @@ class ClassStructure
      */
     public function setIncludes(array $includes): ClassStructure
     {
+        throw new \Exception('@deprecated');
         $this->includes = $includes;
         return $this;
     }
@@ -410,10 +435,10 @@ class ClassStructure
         $path = str_replace('/home/tac/survos/ca/vendor/collectiveaccess/providence', '', $file->getPath());
         return $path . '/' . $this->getClassname() . '.php';
     }
-    public function getNamespaceFromPath($path): ?string
+
+    static public function getNamespaceFromPath($path): ?string
     {
         $namespace = null;
-        if (preg_match('|app|', $path)) {
             // hack!
             $namespace = $path;
             $namespace = str_replace('/home/tac/survos/ca/', '', $namespace);
@@ -421,11 +446,12 @@ class ClassStructure
             // use the map?  Or just make everything CA?
 //            $namespace = str_replace('app/lib', 'CA/lib', $namespace);
 
-            $namespace = preg_replace('|^.*?/app/|', 'CA\\', $namespace);
+//            $namespace = preg_replace('|^.*?/app/|', 'CA\\', $namespace);
             $namespace = str_replace('/', '\\', $namespace);
-            $namespace = str_replace('.php', '', $namespace);
+//            $namespace = str_replace('.php', '', $namespace);
+        if (preg_match('|app|', $path)) {
         }
-        return $namespace;
+        return 'CA\\' . $namespace;
     }
 
 
