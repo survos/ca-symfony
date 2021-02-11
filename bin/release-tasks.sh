@@ -22,6 +22,7 @@ find app/lib/Utils -name "*.php" -exec php -r '$fn = $argv[1]; echo $fn."\n"; fi
 ~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix app -vvv
 ~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix support -vvv
 ~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix themes -vvv
+~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix ca -vvv
 #exit 1;
 #find vendor/collectiveaccess/providence/app/lib/Export/Base*.php -type f -exec sed  -e ':a;N;$!ba;s/\n *((final|abstract)? +class)/\n$1/g' {} \;
 # moves end of class } to the first column, to match beginning (above).  Can probably do more here, too.

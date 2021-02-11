@@ -115,7 +115,7 @@ class AppController extends AbstractController
         $finder
             ->in($dirToRemove = ($dir . '/vendor/collectiveaccess/providence/'))
             ->filter(static function (\SplFileInfo $file) {
-                return $file->isFile() && !preg_match('/providence\/(app\/tmp|vendor|tests)/', $file->getRealPath()) && !preg_match('/(xxxphpqrcode)/', $file->getRealPath()) && preg_match('/helper/', $file->getRealPath()) && preg_match('/\.(php)$/i', $file->getFilename());
+                return $file->isFile() && !preg_match('/providence\/(app\/tmp|vendor|tests)/', $file->getRealPath()) && !preg_match('/(xxxphpqrcode)/', $file->getRealPath()) && preg_match('//', $file->getRealPath()) && preg_match('/\.(php)$/i', $file->getFilename());
             });
 
 

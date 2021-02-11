@@ -20,9 +20,9 @@ class PhpFile
 {
     const IS_INC = 'inc'; // e.g. setup or a function list
     const IS_CLASS = 'class'; // one or more classes defined
-    const IS_CONTROLLER = 'controller'; // one or more classes defined
-    const IS_VIEW = 'view'; // one or more classes defined
-    const IS_INTERFACE = 'interface'; // one or more classes defined
+    const IS_SCRIPT = 'script'; // like index.php
+    const IS_VIEW = 'view'; // template
+    const IS_INTERFACE = 'interface';
     const IS_TRAIT = 'trait'; // one or more classes defined
     const IS_IGNORED = 'ignored'; // one or more classes defined
     const IS_CLI = 'cli'; // one or more classes defined
@@ -98,7 +98,7 @@ class PhpFile
     public static function applyNamespaceHacks($path)
     {
         // hack for keyword problem.
-        $path = preg_replace('|/Print/|', '/PrintUtilities/', $path);
+        $path = preg_replace('|/lib/Print|', '/lib/PrintUtilities', $path);
         return $path;
 
     }
@@ -140,7 +140,7 @@ class PhpFile
         } elseif (preg_match('|^#!/usr/|', $rawPhp, $m)) {
             $this->setStatus(self::IS_CLI);
         } elseif (preg_match('|setup\.php|', $rawPhp, $m)) {
-            $this->setStatus(self::IS_CONTROLLER);
+            $this->setStatus(self::IS_SCRIPT);
         } elseif (preg_match('{/views|printTemplates/}', $this->getRealPath(), $m)) {
             $this->setStatus(self::IS_VIEW);
         } elseif (preg_match('{/Flickr|demos|/old/}', $this->getRealPath(), $m)) {
@@ -152,7 +152,11 @@ class PhpFile
         } elseif (preg_match('{/app/lib|(preload|version)\.php}', $this->getRealPath(), $m)) {
             $this->setStatus(self::IS_INC);
         } else {
-            dd($this->getRealPath(), $rawPhp);
+            if ($this->getPhpClasses()->count()) {
+                $this->setStatus(self::IS_CLASS);
+            } else {
+                dd($this->getRealPath(), $rawPhp);
+            }
         }
             return $this;
     }

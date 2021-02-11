@@ -49,7 +49,7 @@
                 </td>
                 <td>
                     {% for phpClass in phpFile.phpClasses %}
-                        {{ phpClass.name }}
+                        {{ phpClass.realPath }}
                         {% for functionName in phpClass.functionList %}
                             <small>{{ functionName }}()</small>
                         {% endfor %}

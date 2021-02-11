@@ -130,6 +130,14 @@ class FixNamespaceService
             $php = preg_replace('/^<\?php/', '', $php);
             $php = preg_replace('/<\?php>$/', '', $php);
 
+            // if there's still a <?php tag in here, then it's a template, never create a namespace or class
+            if (preg_match('/<\?php.*?\?>/ms', $php, $m)) {
+                $phpFile->setStatus(PhpFile::IS_VIEW);
+                return;
+            }
+
+            // we could simply include this
+
             // check to make sure that the filename matches the class name.  If not, create new files.
             if (preg_match_all('/\n((final |abstract )?(class |interface |trait )([^ ]+)[^\n]*\n{(.*?)\n})/sm', $php, $mm, PREG_SET_ORDER)) {
                 foreach ($mm as $idx => $m) {
@@ -146,28 +154,51 @@ class FixNamespaceService
                 // get everything to the first function and squeeze in a class
             } elseif (preg_match('/(.*?)\n(private |public )?function ([a-zA-Z0-9_]+)\s*\(.*?\n}\n/sm', $php, $mm)) {
 //                $path = $phpFile->getRealPath();
-                $phpFile
-                    ->setStatus(PhpFile::IS_CLASS) // we're forcing it into a class
-                    ->setHeaderPhp($mm[1]);
 
                 // @todo: fix this so docBlocks are correct
                 $functionsPhp = str_replace($mm[1], '', $php); // the php content
+                // tidy this up?  Add public?
+//                exec($functionsPhp); // this should define the function
+
+
+//                dd($phpFile->getRealPath(), $functionsPhp);
 //                dd($functionsPhp, $php, $mm);
                 $className = str_replace('.php', '', pathinfo($phpFile->getRealPath(), PATHINFO_BASENAME));
+                // remove the functions from php file, so we have an accurate header
 
                 $phpClass = (new PhpClass())
                     ->setName($className)
                     ->setType('class')
-                    ->setOriginalPhp("class $className\n{\n\n" . $functionsPhp . "}" );
+//                    ->setOriginalPhp("class $className\n{\n\n" . $functionsPhp . "\n}" )
+                ;
 
                 // get the list of functions so we can import them.
                 // use function My\Full\functionName as func;
-                if (preg_match_all('/\n(private |public )?function ([a-zA-Z0-9_]+)\s*\(.*?\n}\n/sm', $php, $mmm)) {
+                if (preg_match_all('/\n(private |public )?function ([a-zA-Z\d_]+)\s*\(.*?\n}\n/ism', $php . "\n", $mmm, PREG_SET_ORDER)) {
+//                    $php = str_replace($mmm[1], '', $php);
+                    $functionList = [];
+                    $functionPhp = '';
+                    foreach ($mmm as $m) {
+                        array_push($functionList, $m[2]);
+                        $functionPhp .= $m[0] . "\n";
+                        $php = str_replace($m[0], "// $m[2]() removed\n", $php . "\n");
+                    }
                     $phpClass
-                        ->setFunctionList($mmm[2]);
+                        ->setOriginalPhp($functionPhp) // namespaced, but NOT in a class.  "class $className\n{\n\n" . $functionPhp . "\n}" )
+                        ->setFunctionList($functionList);
                 }
+//                if ($phpFile->getFilenameWithoutExtension() == 'accessHelpers.php') {
+//                    dd($functionList, $functionPhp, $php);
+//                    dd($functionList, $phpFile->getRealPath());
+//                }
+
 
                 $phpFile->addPhpClass($phpClass);
+
+//                $phpFile->setRawPhp(str_replace($functionsPhp, '', $php));
+                $phpFile
+                    ->setStatus(PhpFile::IS_CLASS) // we're forcing it into a class
+                    ->setHeaderPhp($php); // the original PHP, minus the functions.  The class has to go below this,because sometimes globals are set., e.g. accessHelpers.php
 
                 // if there's any PHP besides the first one, it's a template.  if there's a $this, it's an include for a class (and should be manually included when the time comes).
                 if (preg_match('/<?/', $php) || preg_match('/\$this/', $php) ) {
@@ -189,10 +220,21 @@ class FixNamespaceService
 //                dd($functions);
 
             } else {
+                //
                 if ($phpFile->getStatus() === PhpFile::IS_CLASS)
                 {
                     dd($phpFile->getStatus(), $phpFile->getRelativeFilename(), $php);
                 }
+
+                // hack on a class, even if it's just a bunch of includes or constants
+                $className = str_replace('.php', '', pathinfo($phpFile->getRealPath(), PATHINFO_BASENAME));
+                $phpClass = (new PhpClass())
+                    ->setName($className)
+                    ->setType('class')
+                    ->setOriginalPhp( "\nclass $className\n{\n\n"  . "}" );
+                $phpFile->setHeaderPhp("// class created from name\n\n" . $php)
+                    ->addPhpClass($phpClass);
+
             }
         }
 
@@ -200,6 +242,9 @@ class FixNamespaceService
             $newFilename = $this->namespacedDir . '/' . ($relativeFilename = PhpFile::applyNamespaceHacks($phpClass->getPhpFile()->getRelativePath()) . sprintf('/%s.php', $phpClass->getName()));
             $phpClass->setRealPath($newFilename);
             $ns = $this->getNamespaceFromPath($phpClass->getPhpFile()->getRelativePath());
+            if (count($phpClass->getFunctionList())) {
+                $ns .= "\\" . $className; // functions aren't in a class, but instead namespaced.
+            }
             $phpClass->setNamespace($ns);
         }
 
@@ -210,6 +255,7 @@ class FixNamespaceService
         // get a list of the files we're going to need
         $include = [];
         foreach (explode("\n", trim($php)) as $line) {
+            // maybe exit when we see function() or class
             if ($fileToInclude = $this->extractIncludedFilename($line)) {
                 $include[$fileToInclude] = $line;
             }
@@ -230,10 +276,10 @@ class FixNamespaceService
             foreach ($includedPhpFile->getPhpClasses() as $phpClass) {
                 $use = $phpClass->getUse();
                 dd($uses, $use);
-                if (!array_key_exists($uses, )) {
-                    array_push($newLines, sprintf("use %s;", $phpClass->getUse()));
-                    $uses[$phpClass->getUse()] = $includedFile;
-                }
+//                if (!array_key_exists($uses)) {
+//                    array_push($newLines, sprintf("use %s;", $phpClass->getUse()));
+//                    $uses[$phpClass->getUse()] = $includedFile;
+//                }
             }
         } else {
             array_push($newLines, "$line // ". $includedPhpFile->getStatus());
@@ -257,7 +303,7 @@ class FixNamespaceService
 
             if (!defined($ca_constant)) {
                 switch ($ca_constant) {
-                    case "$this->opo_config->get('application_plugins')": $ca_constant = 'xx'; break;
+                    case "\$this->opo_config->get('application_plugins')": $ca_constant = 'xx'; break;
                     case 'self::$opo_config->get("views_directory"': $ca_constant = 'xx'; break;
                 }
             } else {
@@ -322,7 +368,7 @@ class FixNamespaceService
             }
         }
 
-
+//        dd($filename, $contents);
         file_put_contents($filename, $contents);
     }
 
@@ -519,6 +565,7 @@ END;
                 if ($originalIncludedFile->getPhpClasses()->count()) {
                     foreach ($originalIncludedFile->getPhpClasses() as $phpClass) {
 
+
                         $uses["use " . $phpClass->getUse()] = $info;
                         // add the functions, which are now inside a class
                         foreach ($phpClass->getFunctionList() as $functionName) {
@@ -526,8 +573,12 @@ END;
                         }
                     }
                 } else {
-//                dd($originalIncludedFile);
-                    $uses[$info] = $include; // should be the include or require
+                    $filename = pathinfo($include, PATHINFO_BASENAME);
+                    if (!$filename == 'configuration_error_html.php') {
+                        dd($include, $info, $originalIncludedFile);
+                        $uses[$info] = $include; // should be the include or require
+                    }
+
                 }
             }
         }
