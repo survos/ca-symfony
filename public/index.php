@@ -23,12 +23,14 @@ $request = Request::createFromGlobals();
 //$response = $kernel->handle($request);
 $response = $kernel->handle($request);
 
+
+//include "providence/index.php";
+//$response->send();
+//$kernel->terminate($request, $response);
+
 if ($response->getStatusCode() !== 404) {
     $response->send();
     $kernel->terminate($request, $response);
     exit();
 }
 
-//include "providence/index.php";
-//$response->send();
-//$kernel->terminate($request, $response);

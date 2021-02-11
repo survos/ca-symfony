@@ -6,8 +6,10 @@ namespace App\Command;
 
 class ClassStructure
 {
+    const RAW_INCLUDE = 'raw-include'; // continue to use include, not "use"
     private string $filename;
     private string $ns;
+    private string $docComment = '';
     private string $php;
     private ?string $originalPhp;
     private string $classname;
@@ -18,6 +20,82 @@ class ClassStructure
     private ?string $header = null;
     private string $originalheader;
     private string $status;
+    private ?\ReflectionClass $extends;
+
+    /**
+     * @return string
+     */
+    public function getExtends(): ?\ReflectionClass
+    {
+        return $this->extends;
+    }
+
+    /**
+     * @param string $extends
+     * @return ClassStructure
+     */
+    public function setExtends(?\ReflectionClass $extends): ClassStructure
+    {
+        $this->extends = $extends;
+        return $this;
+    }
+
+    private int $startLine;
+    private int $endLine;
+
+    /**
+     * @return int
+     */
+    public function getStartLine(): int
+    {
+        return $this->startLine;
+    }
+
+    /**
+     * @param int $startLine
+     * @return ClassStructure
+     */
+    public function setStartLine(int $startLine): ClassStructure
+    {
+        $this->startLine = $startLine;
+        return $this;
+    }
+
+    /**
+     * @return int
+     */
+    public function getEndLine(): int
+    {
+        return $this->endLine;
+    }
+
+    /**
+     * @param int $endLine
+     * @return ClassStructure
+     */
+    public function setEndLine(int $endLine): ClassStructure
+    {
+        $this->endLine = $endLine;
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getDocComment(): string
+    {
+        return $this->docComment;
+    }
+
+    /**
+     * @param string $docComment
+     * @return ClassStructure
+     */
+    public function setDocComment(string $docComment): ClassStructure
+    {
+        $this->docComment = $docComment;
+        return $this;
+    }
 
     /**
      * @return string
@@ -127,33 +205,45 @@ class ClassStructure
      * ClassStructure constructor.
      * @param string $filename
      */
-    public function __construct(\SplFileInfo $file, string $dirPathToRemove)
+    public function __construct(\SplFileInfo $file=null, string $dirPathToRemove=null)
     {
         $this->status = 'loading';
         // total hack!
         if (!defined('__CA_BASE_DIR__')) {
             // hack for installing via composer
-            define('__CA_BASE_DIR__', realpath(__DIR__ . '/../../vendor/collectiveaccess/providence'));
-            define('__CA_APP_NAME__', 'ca');
+//            define('__CA_BASE_DIR__', realpath(__DIR__ . '/../../vendor/collectiveaccess/providence'));
+            define('__CA_BASE_DIR__', $x=realpath($y = __DIR__ . '/../../../pr'));
+//            dd($x, $y);
             if (!is_dir(__CA_BASE_DIR__)) {
-                throw new \Exception(__CA_MODELS_DIR__ . ' is not a valid directory');
+                throw new \Exception(__CA_BASE_DIR__ . ' is not a valid directory');
             }
+            define('__CA_APP_NAME__', 'ca');
             include __CA_BASE_DIR__ . '/app/helpers/post-setup.php';
         }
-        $this->filename = $file->getRealPath();
-        $this->originalPhp = file_get_contents($this->filename);
-        $this->lineCount = count(file($this->filename)) - 1;;
+//        $this->originalPhp = file_get_contents($this->filename);
+//        $this->lineCount = count(file($this->filename)) - 1;;
 
 
         $this->path = str_replace($dirPathToRemove, '', $file->getRealPath());
 
-        $this->ns = str_replace('.php', '', $this->path);
-        $this->ns = str_replace('/', '\\', $this->ns);
-        $this->ns = ltrim($this->ns, '\\');
+//        $this->ns = str_replace('.php', '', $this->path);
+//        $this->ns = str_replace('/', '\\', $this->ns);
+//        $this->ns = ltrim($this->ns, '\\');
+        $this->setNs($this->getNamespaceFromPath(pathinfo($file->getRealPath(), PATHINFO_DIRNAME)));
+        assert(!$this->getNs());
+
         //
 //        $this->setIncludes($this->processHeader());
 //        dd($this->getIncludes());
 //        $this->extractHeader();
+    }
+
+    public function addInclude(string $namespace, string $filename) {
+//        dump($namespace, $filename);
+        $namespace = str_replace('/', '\\', $namespace); // from includes.
+        $namespace = str_replace('.php', '', $namespace); // from includes.
+        assert(!preg_match('/\//', $namespace), $namespace . " " . $filename);
+        $this->includes[$namespace] = $filename;
     }
 
 
@@ -197,6 +287,7 @@ class ClassStructure
      */
     public function setIncludes(array $includes): ClassStructure
     {
+        throw new \Exception('@deprecated');
         $this->includes = $includes;
         return $this;
     }
@@ -338,26 +429,53 @@ class ClassStructure
         }
     }
 
-    public function getNamespaceFromFilename($filename): ?string
+    public function getFilenameToWrite()
+    {
+        $file = (new \SplFileInfo($this->getFilename()));
+        $path = str_replace('/home/tac/survos/ca/vendor/collectiveaccess/providence', '', $file->getPath());
+        return $path . '/' . $this->getClassname() . '.php';
+    }
+
+    static public function getNamespaceFromPath($path): ?string
     {
         $namespace = null;
-        if (preg_match('|app|', $filename)) {
             // hack!
-//            $namespace = str_replace('vendor/collectiveaccess/providence/', '', $filename);
+            $namespace = $path;
+            $namespace = str_replace('/home/tac/survos/ca/', '', $namespace);
+            $namespace = str_replace('vendor/collectiveaccess/providence/', '', $namespace);
             // use the map?  Or just make everything CA?
 //            $namespace = str_replace('app/lib', 'CA/lib', $namespace);
 
-            $namespace = preg_replace('|^.*?/app/|', 'CA\\', $filename);
+//            $namespace = preg_replace('|^.*?/app/|', 'CA\\', $namespace);
             $namespace = str_replace('/', '\\', $namespace);
-            $namespace = str_replace('.php', '', $namespace);
+//            $namespace = str_replace('.php', '', $namespace);
+        if (preg_match('|app|', $path)) {
         }
-        return $namespace;
+        return 'CA\\' . $namespace;
     }
 
 
     public function top($n=1800)
     {
         return substr($this->originalPhp, 0, $n);
+    }
+
+    public function getClassPhp(): array
+    {
+        return $this->getClassContent($this->getStartLine()-1, $this->getEndLine() - $this->getStartLine()+1);
+    }
+
+    public function getClassContent($start=0, $end=false): array
+    {
+        return array_slice(file($this->getFilename()), $start, $end ? $end : INF);
+    }
+
+    public function getClassPhpText()
+    {
+        $php  = ltrim(trim(join("", $this->getClassPhp())));
+        // hacks that could be cleaner...
+        $php = str_replace('extends Exception', 'extends \\Exception', $php);
+        return $php;
     }
 
     public function createNewHeader()
@@ -411,7 +529,11 @@ class ClassStructure
         }
         return $this->includes;
     }
-
+    
+    public function isRawInclude(): bool
+    {
+        return $this->getStatus() === self::RAW_INCLUDE;
+    }
 
     private function getMap()
     {
@@ -431,4 +553,5 @@ class ClassStructure
             'self::$opo_config->get("views_directory")' => 'CA\Views'
         ];
     }
+
 }

@@ -1,24 +1,10 @@
 {% extends "base.html.twig" %}
 
 {% block body %}
-    {% for filename, classInfo in files  %}
-    <h3>{{ filename }} {{ classInfo.status }}</h3>
-    <ul>
-        <li><span title="{{ classInfo.filename }}">{{ classInfo.ns }}</span><sup>{{ classInfo.lineCount }}</sup>
 
-            <h4>{{ classInfo.includes|length }} includes</h4>
-            <ol>
-                {% for path, ns in classInfo.includes %}
-                    <li>
-                        use {{ ns }}; // {{ path }}
-                    </li>
-                {% endfor %}
-            </ol>
-        </li>
-    </ul>
-        {{ loop.index == 2 ? dump(classInfo.includes) }}
-    {% endfor %}
-    
+    <a href="{{ path('app_load_files') }}" class="btn btn-danger">Load Files</a>
+    <a href="{{ path('app_reflection') }}" class="btn btn-warn">Reflect</a>
+    {{ block('install') }}
 {% endblock %}
 
 
