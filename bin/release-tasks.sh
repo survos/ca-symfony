@@ -16,9 +16,9 @@ cd vendor/collectiveaccess/providence/ && git checkout app && cd ../../..
 # make sure line with class is in the first column
 # find vendor/collectiveaccess/providence -type f -path vendor/collectiveaccess/providence/vendor -prune -false -exec php -r 'file_put_contents($argv[1], preg_replace("/\n\s*((abstract |final |public )?(trait |class |interface ))/", "\n$1", file_get_contents($argv[1])));' {} \;
 cd vendor/collectiveaccess/providence
-#find app import install support themes -name "*.php" -exec php -r '$fn = $argv[1]; echo $fn."\n"; file_put_contents($fn, preg_replace("/\n\s*((abstract |final |public )?(trait |class |interface ))/", "\n\n$1", file_get_contents($fn)));' {} \;
+  #find app import install support themes -name "*.php" -exec php -r '$fn = $argv[1]; echo $fn."\n"; file_put_contents($fn, preg_replace("/\n\s*((abstract |final |public )?(trait |class |interface ))/", "\n\n$1", file_get_contents($fn)));' {} \;
 find app themes support -name "*.php" -exec php -r '$fn = $argv[1]; echo $fn."\n"; file_put_contents($fn, preg_replace("/\n\s*((abstract |final |public )?(function |trait |class |interface ))/", "\n\n$1", file_get_contents($fn)));' {} \;
-find app/lib/Utils -name "*.php" -exec php -r '$fn = $argv[1]; echo $fn."\n"; file_put_contents($fn, preg_replace("/\n\s*((abstract |final |public )?(trait |class |interface ))/", "\n\n$1", file_get_contents($fn)));' {} \;
+#find app/lib/Utils -name "*.php" -exec php -r '$fn = $argv[1]; echo $fn."\n"; file_put_contents($fn, preg_replace("/\n\s*((abstract |final |public )?(trait |class |interface ))/", "\n\n$1", file_get_contents($fn)));' {} \;
 ~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix app -vvv
 ~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix support -vvv
 ~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix themes -vvv
