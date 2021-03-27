@@ -4,20 +4,20 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "require": {
-        "php": "7.4.*",
+        "php": "8.*",
+
         "ext-ctype": "*",
         "ext-dom": "*",
         "ext-gd": "*",
         "ext-iconv": "*",
         "ext-imagick": "*",
         "ext-json": "*",
-        "collectiveaccess/providence": "1.7.9",
+        "collectiveaccess/providence": "1.7.11",
         "composer/package-versions-deprecated": "1.11.99.1",
         "doctrine/annotations": "^1.0",
         "doctrine/doctrine-bundle": "^2.2",
         "doctrine/doctrine-migrations-bundle": "^3.0",
         "doctrine/orm": "^2.8",
-        "ondrejmirtes/better-reflection": "^4.3",
         "phpdocumentor/reflection-docblock": "^5.2",
         "sensio/framework-extra-bundle": "^5.1",
         "symfony/asset": "5.2.*",
@@ -84,9 +84,9 @@
                 "type": "package",
                 "package": {
                     "name": "collectiveaccess/providence",
-                    "version": "1.7.9",
+                    "version": "1.7.11",
                     "dist": {
-                        "url": "https://github.com/tacman/providence/archive/1.7.9.1-heroku.zip",
+                        "url": "https://github.com/collectiveaccess/providence/archive/refs/heads/develop.zip",
                         "type": "zip"
                     }
                 }
