@@ -11,7 +11,7 @@
         "ext-iconv": "*",
         "ext-imagick": "*",
         "ext-json": "*",
-        "collectiveaccess/providence": "develop",
+        "collectiveaccess/providence": "1.7.11",
         "composer/package-versions-deprecated": "1.11.99.1",
         "doctrine/annotations": "^1.0",
         "doctrine/doctrine-bundle": "^2.2",
@@ -83,7 +83,7 @@
                 "type": "package",
                 "package": {
                     "name": "collectiveaccess/providence",
-                    "version": "develop",
+                    "version": "1.7.11",
                     "dist": {
                         "url": "https://github.com/tacman/providence/archive/refs/heads/develop.zip",
                         "type": "zip"
@@ -106,7 +106,6 @@
             "rm -Rf vendor/collectiveaccess/providence/app/tmp",
             "mkdir -p vendor/collectiveaccess/providence/media/collectiveaccess",
             "chmod +rw vendor/collectiveaccess/providence/media/collectiveaccess"
-            ""
         ],
         "post-install-cmd": [
             "@auto-scripts",

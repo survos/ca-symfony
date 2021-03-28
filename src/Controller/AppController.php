@@ -120,8 +120,10 @@ class AppController extends AbstractController
 
         // if this is a link, resolve it.
         $dirsToRemove = [$dirToRemove];
-        if ($realPath = readlink($dirToRemove)) {
-            array_push($dirsToRemove, $realPath);
+        if (is_link($dirToRemove)) {
+            if ($realPath = readlink($dirToRemove)) {
+                array_push($dirsToRemove, $realPath);
+            }
         }
 
 //        $finder->exclude('providence/vendor')->files()->name('*.php')->in([])
