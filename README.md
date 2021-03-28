@@ -45,3 +45,8 @@ SETUP=setup-tests.php support/bin/caUtils install --profile-name testing  --admi
 
 
 ```
+
+## 
+
+## Migrating to Namespaces
+

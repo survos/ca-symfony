@@ -215,7 +215,7 @@ class ClassStructure
             define('__CA_BASE_DIR__', $x=realpath($y = __DIR__ . '/../../../pr'));
 //            dd($x, $y);
             if (!is_dir(__CA_BASE_DIR__)) {
-                throw new \Exception(__CA_BASE_DIR__ . ' is not a valid directory');
+                throw new \Exception(sprintf('__CA_BASE_DIR__ is not a valid directory [%s]', __CA_BASE_DIR_));
             }
             define('__CA_APP_NAME__', 'ca');
             include __CA_BASE_DIR__ . '/app/helpers/post-setup.php';
@@ -225,13 +225,19 @@ class ClassStructure
 //        $this->originalPhp = file_get_contents($this->filename);
         $this->lineCount = count(file($this->filename)) - 1;;
         $this->path = str_replace($dirPathToRemove, '', $file->getRealPath());
+        $this->filename = $this->path . '/' . $file->getFilename(); // ??
+
+//        $this->ns = str_replace('.php', '', $this->path);
+//        $this->ns = str_replace('/', '\\', $this->ns);
+//        $this->ns = ltrim($this->ns, '\\');
+        $this->setNs($this->getNamespaceFromPath(pathinfo($file->getRealPath(), PATHINFO_DIRNAME)));
+//        assert(!$this->getNs(), "Cannot get namespace from " . $file->getRealPath());
 
 //        $this->ns = str_replace('.php', '', $this->path);
 //        $this->ns = str_replace('/', '\\', $this->ns);
 //        $this->ns = ltrim($this->ns, '\\');
         $this->setNs($this->getNamespaceFromPath(pathinfo($file->getRealPath(), PATHINFO_DIRNAME)));
         assert(!$this->getNs());
-
         //
 //        $this->setIncludes($this->processHeader());
 //        dd($this->getIncludes());
