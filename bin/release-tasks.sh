@@ -1,47 +1,44 @@
-#wget https://github.com/collectiveaccess/providence/archive/1.7.9.zip && unzip 1.7.9.zip -d public
-#https://github.com/collectiveaccess/providence/archive/1.7.9.zip
-#git clone --depth 1 git@github.com:collectiveaccess/providence public/providence
-#cp config/setup.php vendor/collectiveaccess/providence/setup.php
-#rm -Rf vendor/collectiveaccess/providence/app/tmp
-#exit 1;
-# from https://github.com/FriendsOfPHP/PHP-CS-Fixer
+# This script assumes composer has been run and installed providence in vendor/collectiveaccess
+# for testing, this can also be used, reset the ca constant in .env.local
+#      git clone --depth 1 git@github.com:collectiveaccess/providence public/providence
+
+# Make sure fixer is installed:  https://github.com/FriendsOfPHP/PHP-CS-Fixer
 #mkdir --parents tools/php-cs-fixer
 #composer require --working-dir=tools/php-cs-fixer friendsofphp/php-cs-fixer
 
+# Makes sure the media directory exists and is writable.  In production, this should be a symlink
 mkdir -p vendor/collectiveaccess/providence/media/collectiveaccess
 chmod +rw vendor/collectiveaccess/providence/media/collectiveaccess
-<<<<<<< HEAD
+
+# develop-tac includes a setup.php, but the develop branch does not, use this if necessary.
+#cp config/setup.php vendor/collectiveaccess/providence/setup.php
+
 #cd vendor/collectiveaccess/providence/ && git checkout app && cd ../../..
-# hide the vendor directory (@todo: find with exclude)
-# make sure line with class is in the first column
+
 # find vendor/collectiveaccess/providence -type f -path vendor/collectiveaccess/providence/vendor -prune -false -exec php -r 'file_put_contents($argv[1], preg_replace("/\n\s+((abstract |final |public )?(trait |class |interface ))/", "\n$1", file_get_contents($argv[1])));' {} \;
+
 #cd vendor/collectiveaccess/providence
 #find app import install support themes -type f -exec php -r 'file_put_contents($argv[1], preg_replace("/\n\s+((abstract |final |public )?(trait |class |interface ))/", "\n$1", file_get_contents($argv[1])));' {} \;
 #~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix vendor/collectiveaccess/providence/app
+
 cd vendor/collectiveaccess/providence/ && git checkout app && cd ../../..
-# hide the vendor directory (@todo: find with exclude)
 
 # make sure line with class is in the first column
 # find vendor/collectiveaccess/providence -type f -path vendor/collectiveaccess/providence/vendor -prune -false -exec php -r 'file_put_contents($argv[1], preg_replace("/\n\s*((abstract |final |public )?(trait |class |interface ))/", "\n$1", file_get_contents($argv[1])));' {} \;
 cd vendor/collectiveaccess/providence
   #find app import install support themes -name "*.php" -exec php -r '$fn = $argv[1]; echo $fn."\n"; file_put_contents($fn, preg_replace("/\n\s*((abstract |final |public )?(trait |class |interface ))/", "\n\n$1", file_get_contents($fn)));' {} \;
 find app themes support -name "*.php" -exec php -r '$fn = $argv[1]; echo $fn."\n"; file_put_contents($fn, preg_replace("/\n\s*((abstract |final |public )?(function |trait |class |interface ))/", "\n\n$1", file_get_contents($fn)));' {} \;
-=======
 
 cd vendor/collectiveaccess/providence/ && git checkout app && cd ../../..
-# hide the vendor directory (@todo: find with exclude)
-
-# make sure line with class is in the first column
-# find vendor/collectiveaccess/providence -type f -path vendor/collectiveaccess/providence/vendor -prune -false -exec php -r 'file_put_contents($argv[1], preg_replace("/\n\s*((abstract |final |public )?(trait |class |interface ))/", "\n$1", file_get_contents($argv[1])));' {} \;
 cd vendor/collectiveaccess/providence
-  #find app import install support themes -name "*.php" -exec php -r '$fn = $argv[1]; echo $fn."\n"; file_put_contents($fn, preg_replace("/\n\s*((abstract |final |public )?(trait |class |interface ))/", "\n\n$1", file_get_contents($fn)));' {} \;
 
-# get rid of spaces before classes
+# get rid of spaces before classes, so that cs-fixer works.
 find app themes support -name "*.php" -exec php -r '$fn = $argv[1]; echo $fn."\n"; file_put_contents($fn, preg_replace("/\n\s*((abstract |final |public )?(function |trait |class |interface ))/", "\n\n$1", file_get_contents($fn)));' {} \;
 
 #find app/lib/Utils -name "*.php" -exec php -r '$fn = $argv[1]; echo $fn."\n"; file_put_contents($fn, preg_replace("/\n\s*((abstract |final |public )?(trait |class |interface ))/", "\n\n$1", file_get_contents($fn)));' {} \;
-~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix app -vvv
-~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix support -vvv
+~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix vendor/collectiveaccess/providence/support -vvv
+~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix vendor/collectiveaccess/providence/app -vvv
+~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix vendor/collectiveaccess/providence/install -vv
 ~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix themes -vvv
 #~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix ca -vvv
 #exit 1;

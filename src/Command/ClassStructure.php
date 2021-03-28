@@ -211,11 +211,13 @@ class ClassStructure
         // total hack!
         if (!defined('__CA_BASE_DIR__')) {
             // hack for installing via composer
-//            define('__CA_BASE_DIR__', realpath(__DIR__ . '/../../vendor/collectiveaccess/providence'));
-            define('__CA_BASE_DIR__', $x=realpath($y = __DIR__ . '/../../../pr'));
+            define('__CA_BASE_DIR__', realpath(__DIR__ . '/../../vendor/collectiveaccess/providence'));
+
+            // could also get this from the env vars, and pass it.
+//            define('__CA_BASE_DIR__', $x=realpath($y = __DIR__ . '/../../../pr'));
 //            dd($x, $y);
             if (!is_dir(__CA_BASE_DIR__)) {
-                throw new \Exception(sprintf('__CA_BASE_DIR__ is not a valid directory [%s]', __CA_BASE_DIR_));
+                throw new \Exception(sprintf('__CA_BASE_DIR__ is not a valid directory [%s]', __CA_BASE_DIR__));
             }
             define('__CA_APP_NAME__', 'ca');
             include __CA_BASE_DIR__ . '/app/helpers/post-setup.php';
@@ -230,14 +232,13 @@ class ClassStructure
 //        $this->ns = str_replace('.php', '', $this->path);
 //        $this->ns = str_replace('/', '\\', $this->ns);
 //        $this->ns = ltrim($this->ns, '\\');
-        $this->setNs($this->getNamespaceFromPath(pathinfo($file->getRealPath(), PATHINFO_DIRNAME)));
+        $this->setNs($ns = $this->getNamespaceFromPath($dirName = pathinfo($file->getRealPath(), PATHINFO_DIRNAME)));
+        assert(!empty($this->getNs()), "getNamespaceFromPath [$ns] failed: " . $dirName);
 //        assert(!$this->getNs(), "Cannot get namespace from " . $file->getRealPath());
 
 //        $this->ns = str_replace('.php', '', $this->path);
 //        $this->ns = str_replace('/', '\\', $this->ns);
 //        $this->ns = ltrim($this->ns, '\\');
-        $this->setNs($this->getNamespaceFromPath(pathinfo($file->getRealPath(), PATHINFO_DIRNAME)));
-        assert(!$this->getNs());
         //
 //        $this->setIncludes($this->processHeader());
 //        dd($this->getIncludes());
@@ -444,10 +445,12 @@ class ClassStructure
 
     static public function getNamespaceFromPath($path): ?string
     {
+
         $namespace = null;
             // hack!
             $namespace = $path;
-            $namespace = str_replace('/home/tac/survos/ca/', '', $namespace);
+            // @todo: make env var?
+            $namespace = str_replace('/home/tac/tacman/providence/', '', $namespace);
             $namespace = str_replace('vendor/collectiveaccess/providence/', '', $namespace);
             // use the map?  Or just make everything CA?
 //            $namespace = str_replace('app/lib', 'CA/lib', $namespace);

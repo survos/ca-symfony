@@ -138,9 +138,6 @@ class AppController extends AbstractController
         set_error_handler(function ($errno, $errstr, $errfile, $errline ) {
             $this->logger->warning($errstr);
         });
-
-
-
             foreach ($finder as $file) {
                 $absolutePath = $file->getRealPath();
                 $phpFile = (new PhpFile($absolutePath, $dirToRemove))
@@ -456,9 +453,9 @@ class AppController extends AbstractController
     {
         // test php extraction.  Needs to be a a service, since the relative path changes if on the command line.
         $finder = new Finder();
-//        $dir = $bag->get('kernel.project_dir') . '/vendor/collectiveaccess/providence/app';
+        $dir = $bag->get('kernel.project_dir') . '/vendor/collectiveaccess/providence/app';
 
-        $dir = $bag->get('kernel.project_dir') . '/../pr/app';
+//        $dir = $bag->get('kernel.project_dir') . '/../pr/app';
 
         $files = $fixNamespaceService->fix($dir);
 

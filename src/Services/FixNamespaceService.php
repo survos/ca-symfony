@@ -218,18 +218,7 @@ class FixNamespaceService
 
                 } else {
                     dd($phpClass);
-//                require_once($path);
-
-
- //                    dd($mm[1], $phpFile->getRelativeFilename(), $php);
-
                 }
-
-//
-//                dd($mm);
-//                $functions = get_defined_functions();
-//                dd($functions);
-
             } else {
                 //
                 if ($phpFile->getStatus() === PhpFile::IS_CLASS)
