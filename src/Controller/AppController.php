@@ -3,10 +3,12 @@
 namespace App\Controller;
 
 use App\Command\ClassStructure;
+use App\Entity\PhpFile;
 use App\Repository\CaObjectsRepository;
 use App\Repository\ProfileRepository;
 use App\Services\FixNamespaceService;
 use CA\lib\Db;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
@@ -18,21 +20,24 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Routing\RouterInterface;
 use Twig\Environment;
 
+
+
 class AppController extends AbstractController
 {
     private ParameterBagInterface $bag;
-    /**
-     * @var LoggerInterface
-     */
     private LoggerInterface $logger;
+    private EntityManagerInterface $entityManager;
+    private string $namespacedDir;
 
     /**
      * AppController constructor.
      */
-    public function __construct(ParameterBagInterface $bag, LoggerInterface $logger)
+    public function __construct(ParameterBagInterface $bag, LoggerInterface $logger, EntityManagerInterface $entityManager)
     {
         $this->bag = $bag;
         $this->logger = $logger;
+        $this->entityManager = $entityManager;
+        $this->namespacedDir=  $this->bag->get('namespaced_dir');
     }
 
 
@@ -47,6 +52,7 @@ class AppController extends AbstractController
 
         dd($result);
         dd($root, $oldRoute);
+
     }
 
     /**
@@ -87,6 +93,14 @@ class AppController extends AbstractController
     {
         $dir = $this->bag->get('kernel.project_dir') ;
         require_once($dir . '/config/setup.php');
+        define('$vs_app_plugin_dir', __CA_APP_DIR__ . '/plugins');
+        define('$this->ops_controller_path',  __CA_APP_DIR__ . '/service/controllers');
+        define('$this->ops_theme_plugins_path',  __CA_BASE_DIR__ . '/themes/plugins');
+        define('$this->ops_application_plugins_path',  __CA_BASE_DIR__ . '/app/plugins-maybe');// ???
+        define('$vs_base_widget_dir',  __CA_BASE_DIR__ . '/app/widgets');// ???
+//        define('',  __CA_BASE_DIR__ . '/app/views-maybe');// ???
+
+//        dd(__CA_LIB_DIR__);
 //        require_once('./app/helpers/post-setup.php');
 //        $includedFiles = array_filter(get_included_files(), fn(string $filename) => preg_match('{/vendor/collectiveaccess/}', $filename) && !preg_match('{/providence/vendor|app/tmp}', str_replace($dir, '', $filename)));
 
@@ -99,9 +113,9 @@ class AppController extends AbstractController
         $finder = new Finder();
 
         $finder
-            ->in($dir . '/vendor/collectiveaccess/providence/')
+            ->in($dirToRemove = ($dir . '/vendor/collectiveaccess/providence/'))
             ->filter(static function (\SplFileInfo $file) {
-                return $file->isFile() && !preg_match('/providence\/(vendor|tests)/', $file->getRealPath()) && preg_match('/\.(php)$/i', $file->getFilename());
+                return $file->isFile() && !preg_match('/providence\/(app\/tmp|vendor|tests)/', $file->getRealPath()) && !preg_match('/(xxxphpqrcode)/', $file->getRealPath()) && preg_match('//', $file->getRealPath()) && preg_match('/\.(php)$/i', $file->getFilename());
             });
 
 
@@ -126,60 +140,74 @@ class AppController extends AbstractController
         });
 
 
-        // was get_included_files()
-        foreach ($finder as $file) {
-            $absolutePath =  $file->getRealPath();
 
-            if (preg_match('/class ([A-Za-z_0-9]+) /i', file_get_contents($absolutePath), $m)) {
-                $foundClass = $m[1];
-                $this->logger->warning($file->getRealPath(), );
-                    // the problem is that things like SetController exist in multiple directories (thus the need for namespaces)
-                    if (class_exists($foundClass)) {
-                        //
-                        $this->logger->warning('class already exists ' . $foundClass, [$foundClass] );
-                    } else {
-                        if (!in_array($absolutePath, $includedFiles)) {
-                            if (file_exists($absolutePath)) {
-                                // we need to ignore if the requires are missing, like https://github.com/collectiveaccess/providence/blob/develop/app/controllers/find/SearchObjectsBuilderController.php#L28
-                                if (!in_array($file->getFilenameWithoutExtension(), ['HTTPHeaders', 'get-events', '_autoload', 'Shibboleth', 'ShibbolethAuthAdapter', 'AuthController', 'BagIt', 'SearchObjectsBuilderController']))
-                                {
-                                    $this->logger->warning("require_once " . $absolutePath);
-                                    require_once($absolutePath); // to load the declared classes
-                                }
-                            }
-                        }
-                    }
-
-                try {
-                } catch (\Exception $exception) {
-                    $this->logger->warning($exception->getMessage(), [$file->getRealPath()]);
-                }
-            } else {
-//                dump($absolutePath, preg_match('/class ([A-Za-z_0-9]+) /i', file_get_contents($absolutePath)));
-                // we could either add the class (static?) and make the
-                $this->logger->warning("Skipping " . $absolutePath);
+            foreach ($finder as $file) {
+                $absolutePath = $file->getRealPath();
+                $phpFile = (new PhpFile($absolutePath, $dirToRemove))
+                    ->setFilename($file->getFilename());
+                $fixNamespaceService->createClasses($phpFile);
+//                $this->entityManager->persist($phpFile);
+                $files[$file->getRealPath()] = $phpFile;
             }
-            $absolutePath = $file->getRealPath();
-            $shortFilename = str_replace($dir, '', $absolutePath);
-            $files[$absolutePath] = [
-                'phpLines' => file($absolutePath),
-                'shortName' => $shortFilename,
-                'absoluteFilename' => $absolutePath,
-                'classes' => []
-            ];
-
-//            if ($file->getFilenameWithoutExtension() == 'ModelController') {
-//                dd($files[$absolutePath], $absolutePath);
-//            }
+//            $this->entityManager->flush();
+        if ($reload = $request->get('reload')) {
         }
 
+        $fixNamespaceService->setFileMap($files);
+
+//        $fileRepo = $this->entityManager->getRepository(PhpFile::class);
+        //
+        /** @var PhpFile $phpFile */
+        foreach ($files as $realPath => $phpFile) {
+
+            switch ($phpFile->getStatus()) {
+                case PhpFile::IS_CLASS:
+                    // extract the classes
+                    break;
+                case PhpFile::IS_INC:
+                    // count the functions so we can use them when this file is included
+                    break;
+                case PhpFile::IS_CLI:
+                    break;
+            }
+        }
+
+        foreach ($files as $realPath => $phpFile) {
+            switch ($phpFile->getStatus()) {
+                case PhpFile::IS_CLASS:
+                    // write the new classes
+                    foreach ($phpFile->getPhpClasses() as $phpClass) {
+                        $fixNamespaceService->writeClass($phpClass);
+                    }
+                    // extract the classes
+                    break;
+                case PhpFile::IS_INC:
+
+                    // someday namespace this
+                    // count the functions so we can use them when this file is included
+                    break;
+                case PhpFile::IS_CLI:
+                    // move to bin/?
+                    break;
+            }
+
+        }
+
+        return $this->render('app/reflection.html.twig', [
+            'files' => $files,
+            'classes' => [] // get_declared_classes()
+        ]);
+
+        assert(false);
+
+
+        // now go through each file and decide what to do with it.
 //        dd($files['/home/tac/survos/ca/vendor/collectiveaccess/providence/app/helpers/utilityHelpers.php']);
 
 //        $includedFiles = array_filter(get_included_files(), fn(string $filename) => preg_match('{/vendor/collectiveaccess/}', $filename) && !preg_match('{/providence/vendor|app/tmp}', str_replace($dir, '', $filename)));
 
-
         $fileToClass = [];
-        $classesToWrite = array_filter(get_declared_classes(), fn($className) => preg_match('//', $className));
+        $classesToWrite = array_filter(get_declared_classes(), fn($className) => preg_match('/Db/', $className));
         foreach ($classesToWrite as $class) {
             $r = (new \ReflectionClass($class));
 
@@ -373,10 +401,6 @@ class AppController extends AbstractController
         }
 
 
-        return $this->render('app/reflection.html.twig', [
-            'files' => $newFiles,
-            'classes' => [] // get_declared_classes()
-        ]);
 
         // find the CA classes
         foreach (get_declared_classes() as $class) {

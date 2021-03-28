@@ -205,7 +205,7 @@ class ClassStructure
      * ClassStructure constructor.
      * @param string $filename
      */
-    public function __construct(\SplFileInfo $file, string $dirPathToRemove)
+    public function __construct(\SplFileInfo $file=null, string $dirPathToRemove=null)
     {
         $this->status = 'loading';
         // total hack!
@@ -220,17 +220,17 @@ class ClassStructure
             define('__CA_APP_NAME__', 'ca');
             include __CA_BASE_DIR__ . '/app/helpers/post-setup.php';
         }
+
         $this->filename = $file->getRealPath();
 //        $this->originalPhp = file_get_contents($this->filename);
         $this->lineCount = count(file($this->filename)) - 1;;
-
-
         $this->path = str_replace($dirPathToRemove, '', $file->getRealPath());
 
 //        $this->ns = str_replace('.php', '', $this->path);
 //        $this->ns = str_replace('/', '\\', $this->ns);
 //        $this->ns = ltrim($this->ns, '\\');
         $this->setNs($this->getNamespaceFromPath(pathinfo($file->getRealPath(), PATHINFO_DIRNAME)));
+        assert(!$this->getNs());
 
         //
 //        $this->setIncludes($this->processHeader());
@@ -535,7 +535,6 @@ class ClassStructure
         return $this->getStatus() === self::RAW_INCLUDE;
     }
 
-
     private function getMap()
     {
         return [
@@ -554,4 +553,5 @@ class ClassStructure
             'self::$opo_config->get("views_directory")' => 'CA\Views'
         ];
     }
+
 }

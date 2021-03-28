@@ -39,8 +39,8 @@ define('__CA_ENABLE_DEBUG_OUTPUT__', true);
 // find the MySQL database url
 foreach (['DATABASE_URL', 'JAWSDB_URL', 'CLEAR_DB_URL'] as $key) {
 
-	if (!empty($_SERVER[$key])) {
-		$parts = parse_url($_SERVER[$key]);
+	if (!empty($_SERVER[$key]) && $parts = parse_url($_SERVER[$key])) {
+		;
         define("__CA_DB_HOST__", $parts['host']);
         define("__CA_DB_USER__", $parts['user']);
         define("__CA_DB_PASSWORD__", $parts['pass']);

@@ -39,10 +39,21 @@
 {% block files %}
     <table class="table">
         <tbody>
-        {% for file in files %}
-            <tr>
+        {% for filename, phpFile in files %}
+            <tr valign="top">
                 <td>
-                    {{ file }}
+                    {{ phpFile.status }}
+                </td>
+                <td>
+                    {{ phpFile.relativeFilename }}
+                </td>
+                <td>
+                    {% for phpClass in phpFile.phpClasses %}
+                        {{ phpClass.realPath }}
+                        {% for functionName in phpClass.functionList %}
+                            <small>{{ functionName }}()</small>
+                        {% endfor %}
+                    {% endfor %}
                 </td>
             </tr>
         {% endfor %}
