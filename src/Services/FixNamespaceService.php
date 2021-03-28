@@ -42,11 +42,10 @@ class FixNamespaceService
             ->resolve($options);
 
         $finder = new Finder();
-        $finder->files()->in($dir)->files()->name('*.php')->filter(
-
+        $finder->files()->in($dir)->files()->name('*.php')->notContains('#!/usr/bin/env php')->filter(
             fn(\SplFileInfo $file) =>
 //                dd($file) &&
-            !preg_match('{/(views|tmp|templates|providence/vendor|printTemplates)/}', $file->getRealPath())
+            !preg_match('{/(views|tmp|templates|support/farm|migrations|providence/vendor|printTemplates)/}', $file->getRealPath())
         );
 
         // check if there are any search results
@@ -61,6 +60,11 @@ class FixNamespaceService
             $this->logger->info("Loading", [$file->getPath(), $file->getFilename()]);
             // ignore views, maybe some other files
             $classStructure = (new ClassStructure($file, $dir));
+            if (!$classStructure->getNs())
+            {
+                $this->logger->error("no namespace: ", [$file]);
+                continue;
+            }
 
             $files[$classStructure->getFilename()] = $classStructure;
 
@@ -234,6 +238,7 @@ class FixNamespaceService
                     ->setOriginalPhp( "\nclass $className\n{\n\n"  . "}" );
                 $phpFile->setHeaderPhp("// class created from name\n\n" . $php)
                     ->addPhpClass($phpClass);
+
 
             }
         }

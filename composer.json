@@ -4,15 +4,14 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "require": {
-        "php": "8.*",
-
+        "php": ">= 7.4",
         "ext-ctype": "*",
         "ext-dom": "*",
         "ext-gd": "*",
         "ext-iconv": "*",
         "ext-imagick": "*",
         "ext-json": "*",
-        "collectiveaccess/providence": "1.7.11",
+        "collectiveaccess/providence": "develop",
         "composer/package-versions-deprecated": "1.11.99.1",
         "doctrine/annotations": "^1.0",
         "doctrine/doctrine-bundle": "^2.2",
@@ -84,9 +83,9 @@
                 "type": "package",
                 "package": {
                     "name": "collectiveaccess/providence",
-                    "version": "1.7.11",
+                    "version": "develop",
                     "dist": {
-                        "url": "https://github.com/collectiveaccess/providence/archive/refs/heads/develop.zip",
+                        "url": "https://github.com/tacman/providence/archive/refs/heads/develop.zip",
                         "type": "zip"
                     }
                 }
@@ -107,6 +106,7 @@
             "rm -Rf vendor/collectiveaccess/providence/app/tmp",
             "mkdir -p vendor/collectiveaccess/providence/media/collectiveaccess",
             "chmod +rw vendor/collectiveaccess/providence/media/collectiveaccess"
+            ""
         ],
         "post-install-cmd": [
             "@auto-scripts",

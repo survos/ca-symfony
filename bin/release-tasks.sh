@@ -10,6 +10,7 @@
 
 mkdir -p vendor/collectiveaccess/providence/media/collectiveaccess
 chmod +rw vendor/collectiveaccess/providence/media/collectiveaccess
+
 cd vendor/collectiveaccess/providence/ && git checkout app && cd ../../..
 # hide the vendor directory (@todo: find with exclude)
 
@@ -17,13 +18,18 @@ cd vendor/collectiveaccess/providence/ && git checkout app && cd ../../..
 # find vendor/collectiveaccess/providence -type f -path vendor/collectiveaccess/providence/vendor -prune -false -exec php -r 'file_put_contents($argv[1], preg_replace("/\n\s*((abstract |final |public )?(trait |class |interface ))/", "\n$1", file_get_contents($argv[1])));' {} \;
 cd vendor/collectiveaccess/providence
   #find app import install support themes -name "*.php" -exec php -r '$fn = $argv[1]; echo $fn."\n"; file_put_contents($fn, preg_replace("/\n\s*((abstract |final |public )?(trait |class |interface ))/", "\n\n$1", file_get_contents($fn)));' {} \;
+
+# get rid of spaces before classes
 find app themes support -name "*.php" -exec php -r '$fn = $argv[1]; echo $fn."\n"; file_put_contents($fn, preg_replace("/\n\s*((abstract |final |public )?(function |trait |class |interface ))/", "\n\n$1", file_get_contents($fn)));' {} \;
+
 #find app/lib/Utils -name "*.php" -exec php -r '$fn = $argv[1]; echo $fn."\n"; file_put_contents($fn, preg_replace("/\n\s*((abstract |final |public )?(trait |class |interface ))/", "\n\n$1", file_get_contents($fn)));' {} \;
 ~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix app -vvv
 ~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix support -vvv
 ~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix themes -vvv
-~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix ca -vvv
+#~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix ca -vvv
+
 #exit 1;
+#find app/lib/Export/Base*.php -type f -exec sed  -e ':a;N;$!ba;s/\n *((final|abstract)? +class)/\n$1/g' {} \;
 #find vendor/collectiveaccess/providence/app/lib/Export/Base*.php -type f -exec sed  -e ':a;N;$!ba;s/\n *((final|abstract)? +class)/\n$1/g' {} \;
 # moves end of class } to the first column, to match beginning (above).  Can probably do more here, too.
 #bin/console c:c
