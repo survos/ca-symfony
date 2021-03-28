@@ -91,13 +91,13 @@ class AppController extends AbstractController
      */
     public function reflect(Request $request, FixNamespaceService $fixNamespaceService): Response
     {
-        $dir = $this->bag->get('kernel.project_dir') ;
+        $dir = $this->bag->get('kernel.project_dir');
         require_once($dir . '/config/setup.php');
         define('$vs_app_plugin_dir', __CA_APP_DIR__ . '/plugins');
-        define('$this->ops_controller_path',  __CA_APP_DIR__ . '/service/controllers');
-        define('$this->ops_theme_plugins_path',  __CA_BASE_DIR__ . '/themes/plugins');
-        define('$this->ops_application_plugins_path',  __CA_BASE_DIR__ . '/app/plugins-maybe');// ???
-        define('$vs_base_widget_dir',  __CA_BASE_DIR__ . '/app/widgets');// ???
+        define('$this->ops_controller_path', __CA_APP_DIR__ . '/service/controllers');
+        define('$this->ops_theme_plugins_path', __CA_BASE_DIR__ . '/themes/plugins');
+        define('$this->ops_application_plugins_path', __CA_BASE_DIR__ . '/app/plugins-maybe');// ???
+        define('$vs_base_widget_dir', __CA_BASE_DIR__ . '/app/widgets');// ???
 //        define('',  __CA_BASE_DIR__ . '/app/views-maybe');// ???
 
 //        dd(__CA_LIB_DIR__);
@@ -113,12 +113,16 @@ class AppController extends AbstractController
         $finder = new Finder();
 
         $finder
-            ->in($dirToRemove = ($dir . '/vendor/collectiveaccess/providence/'))
+            ->in($dirToRemove = ($dir . '/vendor/collectiveaccess/providence'))
             ->filter(static function (\SplFileInfo $file) {
                 return $file->isFile() && !preg_match('/providence\/(app\/tmp|vendor|tests)/', $file->getRealPath()) && !preg_match('/(xxxphpqrcode)/', $file->getRealPath()) && preg_match('//', $file->getRealPath()) && preg_match('/\.(php)$/i', $file->getFilename());
             });
 
-
+        // if this is a link, resolve it.
+        $dirsToRemove = [$dirToRemove];
+        if ($realPath = readlink($dirToRemove)) {
+            array_push($dirsToRemove, $realPath);
+        }
 
 //        $finder->exclude('providence/vendor')->files()->name('*.php')->in([])
 //            ->filter(
@@ -135,21 +139,23 @@ class AppController extends AbstractController
         $includedFiles = array_filter(get_included_files(), fn(string $filename) => preg_match('{/vendor/collectiveaccess/}', $filename) && !preg_match('{/providence/vendor|/tmp}', str_replace($dir, '', $filename)));
 //        dd($includedFiles);
 
-        set_error_handler(function ($errno, $errstr, $errfile, $errline ) {
+        set_error_handler(function ($errno, $errstr, $errfile, $errline) {
             $this->logger->warning($errstr);
         });
-            foreach ($finder as $file) {
-                $absolutePath = $file->getRealPath();
-                $phpFile = (new PhpFile($absolutePath, $dirToRemove))
-                    ->setFilename($file->getFilename());
-                $fixNamespaceService->createClasses($phpFile);
+        foreach ($finder as $file) {
+            $absolutePath = $file->getRealPath();
+            $phpFile = (new PhpFile($absolutePath, $dirsToRemove))
+                ->setFilename($file->getFilename());
+            $fixNamespaceService->createClasses($phpFile);
+
 //                $this->entityManager->persist($phpFile);
-                $files[$file->getRealPath()] = $phpFile;
-            }
+            $files[$file->getRealPath()] = $phpFile;
+        }
 //            $this->entityManager->flush();
         if ($reload = $request->get('reload')) {
         }
 
+        // so that we can convert the include/requires to use statements.
         $fixNamespaceService->setFileMap($files);
 
 //        $fileRepo = $this->entityManager->getRepository(PhpFile::class);
@@ -174,6 +180,9 @@ class AppController extends AbstractController
                 case PhpFile::IS_CLASS:
                     // write the new classes
                     foreach ($phpFile->getPhpClasses() as $phpClass) {
+
+                    }
+                    if ($fixNamespaceService->processHeader($phpClass, $files)) {
                         $fixNamespaceService->writeClass($phpClass);
                     }
                     // extract the classes
@@ -195,7 +204,12 @@ class AppController extends AbstractController
             'classes' => [] // get_declared_classes()
         ]);
 
+    }
+
+    private function oldWay()
+    {
         assert(false);
+
 
 
         // now go through each file and decide what to do with it.
@@ -374,6 +388,7 @@ class AppController extends AbstractController
                     // just add the names
 
                     $newFilename = $this->bag->get('namespaced_dir') .   $cs->getFilenameToWrite();
+                    dd($newFilename);
                     $newDir = dirname($newFilename);
                     if (!is_dir($newDir)) {
                         try {

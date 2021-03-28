@@ -12,6 +12,7 @@ use App\Entity\PhpFile;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Finder\Finder;
+use Symfony\Component\Finder\SplFileInfo;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class FixNamespaceService
@@ -344,6 +345,7 @@ class FixNamespaceService
     {
         $this->files = $files;
     }
+    /** @return PhpFile[] */
     public function getFileMap(): array
     {
         return $this->files;
@@ -421,24 +423,27 @@ class FixNamespaceService
 
     }
 
+    public function getFilenameToWrite()
+    {
+        $file = (new \SplFileInfo($this->getFilename()));
+        dump($file, $file->getPath());
+        $path = str_replace('/home/tac/survos/ca/vendor/collectiveaccess/providence', '', $file->getPath());
+        $path = str_replace('/home/tac/tacman/providence', '', $path);
+        dd($path);
+        return $path . '/' . $this->getClassname() . '.php';
+    }
+
     public function writeClass(PhpClass $phpClass)
         {
-
             $phpFile = $phpClass->getPhpFile();
 
             $newFilename = $phpClass->getRealPath();
             $ns = $phpClass->getNamespace();
-//            dd($newFilename);
-            $this->logger->alert(sprintf("creating $newFilename"));
-
-        // We shouldn't need a user, since its in the same namespace
-
-//        dd($ns, $relativeFilename);
+            $this->logger->info("creating", [$newFilename]);
         $newClassPhp = <<<END
 <?php
 
 namespace $ns;
-
 
 END;
 //        dd($phpFile->getInitialIncludes(), $phpFile->getHeaderPhp());
@@ -625,91 +630,98 @@ END;
      * @param $php
      * @return array
      */
-    public function processHeader(PhpFile $phpFile): bool
+    public function processHeader(PhpClass $phpClass): bool
     {
+        $phpFile = $phpClass->getPhpFile();
         // if it's a file with just functions, we might have requires.  But we don't want the includes that are inside of functions.
 
         // hackish -- this is what's left after the classes have been removed
         $php = $phpFile->getRawPhp();
+        $oldHeader = $phpFile->getHeaderPhp();
+        /** @var PhpFile[] $files */
+        $files = $this->getFileMap();
+
 //        $uses = [];
         $includes = [];
-        if (preg_match($pattern = '/(<\?php.*?\n)(abstract |final |public )?(class |interface |trait |function )/ms', $php, $mm)) {
-            $header = $oldHeader = $mm[1];
-            $cs->setStatus(trim($mm[2]));
-        } else {
-            // so it'll get replaced.
-            // @todo: look for functions and include them in use, then we can make functions namespaced too.
-            $header = $oldHeader = $php;
-            $cs->setStatus('raw-include');
-//            return false;
-            // set a status so that if we see this somewhere, we do a raw include.  It could be constants being defined, or a console script.
-//            throw new \Exception(sprintf("%s  %s %s", $cs->filename, $pattern , $cs->top()));
-        }
-        if ($cs->getStatus() === 'function') {
-            // for now, eventually get all the functions and namespace them.
-            $cs->setStatus('raw-include');
-        }
+//        if (preg_match($pattern = '/(<\?php.*?\n)(abstract |final |public )?(class |interface |trait |function )/ms', $php, $mm)) {
+//            $header = $oldHeader = $mm[1];
+//            $cs->setStatus(trim($mm[2]));
+//        } else {
+//            // so it'll get replaced.
+//            // @todo: look for functions and include them in use, then we can make functions namespaced too.
+//            $header = $oldHeader = $php;
+//            $cs->setStatus('raw-include');
+////            return false;
+//            // set a status so that if we see this somewhere, we do a raw include.  It could be constants being defined, or a console script.
+////            throw new \Exception(sprintf("%s  %s %s", $cs->filename, $pattern , $cs->top()));
+//        }
+//        if ($cs->getStatus() === 'function') {
+//            // for now, eventually get all the functions and namespace them.
+//            $cs->setStatus('raw-include');
+//        }
 
 
-        $cs->setOriginalheader($oldHeader); // use to replace php later
-        $namespace = $cs->getNamespaceFromFilename(dirname($cs->getFilename()));
+//        $phpClass->setOriginalheader($oldHeader); // use to replace php later
+//        $namespace = $cs->getNamespaceFromFilename(dirname($cs->getFilename()));
         $pattern = "/(include|require)_once\((.*?)\.[\"']\/(.*?).php[\"']\)/";
+        $uses = [];
         // walk through the includes and create namespaces from them.  Might not be any.
         if (preg_match_all($pattern, $oldHeader, $mm, PREG_SET_ORDER)) {
             $seen = [];
             $includes = [];
+            $header = $phpFile->getHeaderPhp();
             foreach ($mm as $m) {
                 $ca_constant = $m[2];
-                if (!defined($ca_constant)) {
-                    throw new \Exception($ca_constant . " not defined, " . $cs->getFilename());
-                }
+                assert(defined($ca_constant), $ca_constant . " not defined, " . $phpFile->getFilename());
 
                 $val = constant($ca_constant);
                 $includedFile = $val . '/' . $m[3] . '.php';
-                // files should have all the files 
-                /** @var ClassStructure $csInc */
-                $csInc = $files[$includedFile];
-                // if it's missing, then treat it as a raw include
-
-//                assert($csInc, $cs->getFilename() . " Missing " . $includedFile );
-//                dd($csInc->getStatus(), $includedFile);
-                
-                $ns = $cs->getNamespaceFromFilename($includedFile);
-                // don't include yourself
-                if ($includedFile ===  $cs->getFilename()) {
-                    $header = str_replace($m[0], "// THIS FILE, SO DONT USE NAMESPACE; // $m[0]", $header);
-                } else {
-                    if (empty($csInc) || $csInc->isRawInclude()) {
-                        // 
+                assert(array_key_exists($includedFile, $files));
+                $includedPhpFile = $files[$includedFile];
+                foreach ($includedPhpFile->getPhpClasses() as $includedClass) {
+                    // don't include yourself
+                    if ($includedFile === $includedClass->getPhpFile()->getFilename()) {
+                        $header = str_replace($m[0], "// THIS FILE, SO DONT USE NAMESPACE; // $m[0]", $header);
                     } else {
-//                    dump($includedFile, $cs->getFilename(), $ns, $cs->getNs());
-                        // need to use the ns + classname!
-                        if (!array_key_exists($includedFile, $includes)) {
-                            $header = str_replace($m[0], "use $ns; // $m[3]", $header);
-//                            $seen[$ns] = $includedFile;
+                        if ($includedClass->isRawInclude()) {
+                            // @todo: raw include
+                            //
                         } else {
-                            $header = str_replace($m[0], "// DUPLICATE $m[3]", $header);
+//                    dump($includedFile, $cs->getFilename(), $ns, $cs->getNs());
+                            // need to use the ns + classname!
+                            $use = $includedClass->getUse();
+                            if (!array_key_exists($includedFile, $includes)) {
+                                $header = str_replace($m[0], "use $use; // $m[3]", $header);
+//                            $seen[$ns] = $includedFile;
+                            } else {
+                                $header = str_replace($m[0], "// DUPLICATE $m[3]", $header);
+                            }
                         }
+                    $includes[$includedFile] = $use;
                     }
-//                    $includes[$includedFile] = $ns;
+//                    array_push($uses, $header);
                 }
             }
+
+            if (!$phpClass->isRawInclude())
+            {
+                $header = preg_replace('/namespace [^ ]+;/', '', $header);
+                $header = str_replace("<?php", sprintf("<?php\n\n// %s\n\nnamespace %s;\n\n",
+                    $phpClass->getPhpFile()->getRelativePath(), $phpClass->getNamespace()), $header);
+            }
+            $phpClass->setHeader($header);
+
+//            dd($phpClass, $includes, $header);
             // hack.  While we're in here, fix the header.
             // make sure not to include the use for THIS namespace.
 
 //                    dd($m, $cs->includes, $val);
 //            $cs->setIncludes($includes);
-//            dd($includes, $header);
         }
 
 //            dd($namespace, $cs->path);
         // we might not want the namespace for everything.
 
-        if ($cs->getStatus() <> 'raw-include') {
-            $header = preg_replace('/namespace [^ ]+;/', '', $header);
-            $header = str_replace("<?php", sprintf("<?php\n\n// %s\n\nnamespace %s;\n\n", $cs->getPath(), $namespace), $header);
-        }
-        $cs->setHeader($header);
 //                dd($mm);
         return true;
 

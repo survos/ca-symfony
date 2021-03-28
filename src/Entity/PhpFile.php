@@ -84,11 +84,15 @@ class PhpFile
      */
     private $initialIncludes = [];
 
-    public function __construct($realPath, $dirToRemove)
+    public function __construct($realPath, array $dirsToRemove)
     {
+        $cleanerDir = $realPath;
+        foreach ($dirsToRemove as $dirToRemove) {
+            $cleanerDir = str_replace($dirToRemove . '/', '', $cleanerDir);
+        }
         $this
             ->setRealPath($realPath)
-            ->setRelativeFilename(str_replace($dirToRemove, '', $realPath))
+            ->setRelativeFilename($cleanerDir)
             ->setRelativePath(pathinfo($this->getRelativeFilename(), PATHINFO_DIRNAME))
             ->setRawPhp(trim(file_get_contents($realPath)))
         ;

@@ -439,7 +439,10 @@ class ClassStructure
     public function getFilenameToWrite()
     {
         $file = (new \SplFileInfo($this->getFilename()));
+        dump($file, $file->getPath());
         $path = str_replace('/home/tac/survos/ca/vendor/collectiveaccess/providence', '', $file->getPath());
+        $path = str_replace('/home/tac/tacman/providence', '', $path);
+        dd($path);
         return $path . '/' . $this->getClassname() . '.php';
     }
 

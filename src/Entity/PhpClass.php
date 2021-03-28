@@ -10,6 +10,7 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class PhpClass
 {
+    const RAW_INCLUDE = 'raw_include';
     /**
      * @ORM\Id
      * @ORM\GeneratedValue
@@ -52,6 +53,11 @@ class PhpClass
      * @ORM\Column(type="array", nullable=true)
      */
     private $functionList = [];
+
+    /**
+     * @ORM\Column(type="text", nullable=true)
+     */
+    private $header;
 
     public function getId(): ?int
     {
@@ -152,5 +158,23 @@ class PhpClass
 
         return $this;
     }
+
+    public function isRawInclude(): bool
+    {
+        return $this->getType() === self::RAW_INCLUDE;
+    }
+
+    public function getHeader(): ?string
+    {
+        return $this->header;
+    }
+
+    public function setHeader(?string $header): self
+    {
+        $this->header = $header;
+
+        return $this;
+    }
+
 
 }
