@@ -70,16 +70,9 @@ class AppController extends AbstractController
      */
     public function index(Request $request, FixNamespaceService $fixNamespaceService): Response
     {
-//        $dir = $this->bag->get('kernel.project_dir');
-        // test php extraction.  Needs to be a a service, since the relative path changes if on the command line.
         return $this->render('app/homepage.html.twig', [
-//            'profiles' => $profileRepository->getBasicData()
         ]);
 
-//        $object = $caObjectsRepository->findOneBy([]);
-//        return $this->render('app/index.html.twig', [
-//            'controller_name' => 'AppController',
-//        ]);
     }
 
     private function removeDir($str) {
@@ -89,7 +82,7 @@ class AppController extends AbstractController
     /**
      * @Route("/reflect", name="app_reflection")
      */
-    public function reflect(Request $request, FixNamespaceService $fixNamespaceService): Response
+    public function reflect(FixNamespaceService $fixNamespaceService): Response
     {
         $dir = $this->bag->get('kernel.project_dir');
         require_once($dir . '/config/setup.php');
@@ -120,26 +113,9 @@ class AppController extends AbstractController
 
         // if this is a link, resolve it.
         $dirsToRemove = [$dirToRemove];
-        if (is_link($dirToRemove)) {
-            if ($realPath = readlink($dirToRemove)) {
-                array_push($dirsToRemove, $realPath);
-            }
+        if (is_link($dirToRemove) && ($realPath = readlink($dirToRemove)) ) {
+            array_push($dirsToRemove, $realPath);
         }
-
-//        $finder->exclude('providence/vendor')->files()->name('*.php')->in([])
-//            ->filter(
-//            fn(\SplFileInfo $file) =>  preg_match('/lib/', ($file->getRealPath() )) // && dump($file->getRealPath(), preg_match('/lib/', $file->getRealPath()) ))
-////            dump($file->getRealPath(), preg_match('{/(ca/vendor|ca/var/|cache|views|tmp|templates|ca/bin/|providence/vendor|printTemplates)/}', $file->getRealPath())) &&
-////            !preg_match('{/(ca/vendor|ca/var/|cache|views|tmp|templates|ca/bin/|providence/vendor|printTemplates)/}', $file->getRealPath())
-//        )
-//        ;
-
-//        dump($finder->count(), array_slice(iterator_to_array($finder), 0, 20));
-//        dd($finder);
-
-        // check that it's not already included first
-        $includedFiles = array_filter(get_included_files(), fn(string $filename) => preg_match('{/vendor/collectiveaccess/}', $filename) && !preg_match('{/providence/vendor|/tmp}', str_replace($dir, '', $filename)));
-//        dd($includedFiles);
 
         set_error_handler(function ($errno, $errstr, $errfile, $errline) {
             $this->logger->warning($errstr);
@@ -148,44 +124,28 @@ class AppController extends AbstractController
             $absolutePath = $file->getRealPath();
             $phpFile = (new PhpFile($absolutePath, $dirsToRemove))
                 ->setFilename($file->getFilename());
+            $fixNamespaceService->extractIncludes($phpFile); // no nesting, just the ones explicitly listed.
             $fixNamespaceService->createClasses($phpFile);
 
 //                $this->entityManager->persist($phpFile);
             $files[$file->getRealPath()] = $phpFile;
         }
-//            $this->entityManager->flush();
-        if ($reload = $request->get('reload')) {
-        }
 
         // so that we can convert the include/requires to use statements.
         $fixNamespaceService->setFileMap($files);
 
-//        $fileRepo = $this->entityManager->getRepository(PhpFile::class);
-        //
         /** @var PhpFile $phpFile */
         foreach ($files as $realPath => $phpFile) {
-
             switch ($phpFile->getStatus()) {
                 case PhpFile::IS_CLASS:
-                    // extract the classes
-                    break;
-                case PhpFile::IS_INC:
-                    // count the functions so we can use them when this file is included
-                    break;
-                case PhpFile::IS_CLI:
-                    break;
-            }
-        }
-
-        foreach ($files as $realPath => $phpFile) {
-            switch ($phpFile->getStatus()) {
-                case PhpFile::IS_CLASS:
+//                    $allIncludes = []; // $phpFile->getInitialIncludes();
+//                    $fixNamespaceService->loadIncludes($phpFile, $allIncludes);
+//                    $phpFile->setIncludes($allIncludes);
                     // write the new classes
                     foreach ($phpFile->getPhpClasses() as $phpClass) {
-
-                    }
-                    if ($fixNamespaceService->processHeader($phpClass, $files)) {
-                        $fixNamespaceService->writeClass($phpClass);
+                        if ($fixNamespaceService->processHeader($phpClass)) {
+                            $fixNamespaceService->writeClass($phpClass);
+                        }
                     }
                     // extract the classes
                     break;
@@ -289,57 +249,7 @@ class AppController extends AbstractController
                 }
 //                dd($r, $files[$r->getFileName()], $cs);
 
-                foreach ($cs->getClassContent(0, $r->getStartLine()-2) as $line) {
-                    $pattern = "/(include|require)_once\((.*?)\.[\"']\/(.*?).php[\"']\)/";
-
-                    // walk through the includes and create namespaces from them.  Might not be any.
-                    if (preg_match($pattern, $line, $m)) {
-
-                        // if we get the full filename, we can look up the new class and replace it.
-                        $ca_constant = $m[2];
-                        if (!defined($ca_constant)) {
-                            throw new \Exception($ca_constant . " not defined, " . $line . ' in ' . $r->getFileName());
-                        }
-
-                        $val = constant($ca_constant);
-                        $includedFile = $val . '/' . $m[3] . '.php';
-
-                        // hack!
-                        $includedFile = str_replace('{$format}', 'SimpleZip', $includedFile);
-                        $includedFile = str_replace('{$transport}', 'sFTP', $includedFile);
-                        $includedSplFile = new \SplFileInfo($includedFile);
-
-                        array_push($newHeader, " // ($m[0], $includedFile");
-
-                        $cs->addInclude(ClassStructure::getNamespaceFromPath(pathinfo($includedFile, PATHINFO_DIRNAME)) . '/' . $includedSplFile->getFilename(), $includedFile);
-                        // files should have all the files, except
-                        if (in_array($m[3], ['vendor/autoload'])) {
-                            continue; // autoload will happen outside the classes now.
-                        }
-
-
-                        assert(array_key_exists($includedFile, $files), $m[3] . ':' . $cs->getFilename() . ' ' . $includedFile);
-//                        assert(count($files[$includedFile]['classes']),  $cs->getFilename() . ' ' . $includedFile);
-                        $includedFileInfo = $files[$includedFile];
-//                        dump($m, $includedFileInfo);
-
-                        if (empty($includedFileInfo)) {
-                            if (!in_array($m[3], ['vendor/autoload'])) {
-                                dd($m[0], $m, $includedFile, $line);
-                            } else {
-                                dd($m[0], $m, $includedFile, $line);
-                                continue;
-                            }
-                        }
-
-                        $cs->addInclude($useNs = $cs->getNs(), $cs->getFilename());
-                        foreach ($includedFileInfo['classes'] as $shortName => $c) {
-                            $cs->addInclude($useNs = $c->getNs() . '/' . $shortName, $includedFile);
-                        }
-//                        assert(is_array($includedFileInfo['classes']), dump($includedFileInfo));
-
-                    }
-                }
+                $this->extractIncludes();
 
                 if (count($cs->getIncludes())) {
                     foreach ($cs->getIncludes() as $useNs=>$fn) {

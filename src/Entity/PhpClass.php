@@ -59,6 +59,11 @@ class PhpClass
      */
     private $header;
 
+    /**
+     * @ORM\Column(type="array", nullable=true)
+     */
+    private $includes = [];
+
     public function getId(): ?int
     {
         return $this->id;
@@ -106,9 +111,14 @@ class PhpClass
         return str_replace('/', '\\', 'CA/' . $path);
     }
 
+    public function isClass(): bool
+    {
+        return $this->getPhpFile()->getStatus() === PhpFile::IS_CLASS;
+    }
+
     public function getUse()
     {
-        return $this->guessNamespace() . '\\' . $this->getName();
+        return $this->isClass() ? $this->guessNamespace() . '\\' . $this->getName() : '';
     }
 
     public function getType(): ?string
@@ -172,6 +182,18 @@ class PhpClass
     public function setHeader(?string $header): self
     {
         $this->header = $header;
+
+        return $this;
+    }
+
+    public function getIncludes(): ?array
+    {
+        return $this->includes;
+    }
+
+    public function setIncludes(?array $includes): self
+    {
+        $this->includes = $includes;
 
         return $this;
     }

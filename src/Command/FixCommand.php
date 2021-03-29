@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Controller\AppController;
 use App\Services\FixNamespaceService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -30,12 +31,17 @@ class FixCommand extends Command
      * @var FixNamespaceService
      */
     private FixNamespaceService $fixNamespaceService;
+    /**
+     * @var AppController
+     */
+    private AppController $appController;
 
-    public function __construct(LoggerInterface $logger, FixNamespaceService $fixNamespaceService, string $name = null)
+    public function __construct(LoggerInterface $logger, AppController  $appController, FixNamespaceService $fixNamespaceService, string $name = null)
     {
         parent::__construct($name);
         $this->logger = $logger;
         $this->fixNamespaceService = $fixNamespaceService;
+        $this->appController = $appController;
     }
 
     protected function configure()
@@ -51,6 +57,10 @@ class FixCommand extends Command
     
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $response = $this->appController->reflect($this->fixNamespaceService);
+        // the logger gives us what we need...
+        return self::SUCCESS;
+
         $io = new SymfonyStyle($input, $output);
         $dir = $input->getArgument('dir');
         $this->fixNamespaceService->fix($dir, ['add-namespaces'=>$input->getOption('add-namespaces')]);

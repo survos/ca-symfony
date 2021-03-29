@@ -1,26 +1,54 @@
 <?php
 
+use PhpCsFixer\Config;
+use PhpCsFixer\Finder;
+
 $finder = PhpCsFixer\Finder::create()
-//    ->exclude('somedir')
-//    ->notPath('src/Symfony/Component/Translation/Tests/fixtures/resources.php')
+    ->exclude('vendor')
+    ->notPath('vendor')
 //    ->in(__DIR__)
 ;
 //
 
-$config = new PhpCsFixer\Config();
-return $config->setRules([
-    '@PSR2' => true,
-//    'strict_param' => true,
-    'braces' => true,
-    'class_definition' => true,
-//    'no_php4_constructor' => true,
-    'include' => true,
-    'indentation_type' => true,
-    'line_ending' => true,
-    'linebreak_after_opening_tag' => true,
-    'function_declaration' => true,
-    'visibility_required' => true,
-    'array_syntax' => ['syntax' => 'short'],
-])
-    ->setFinder($finder)
+$config = new PhpCsFixer\Config();return Config::create()
+    ->setRiskyAllowed(true)
+    ->setIndent('    ')
+    ->setLineEnding("\n")
+    ->setRules([
+        'encoding' => true,
+        'full_opening_tag' => true,
+        'class_attributes_separation' => [
+            'elements' => [
+                'const',
+                'method',
+                'property',
+            ],
+        ],
+        'indentation_type' => true,
+        'no_empty_statement' => true,
+        'phpdoc_indent' => true,
+        'no_spaces_after_function_name' => true,
+        'no_spaces_inside_parenthesis' => true,
+        'no_empty_comment' => true,
+        'visibility_required' => [
+            'property',
+            'method',
+            'const',
+        ],
+        'escape_implicit_backslashes' => [
+            'single_quoted' => false,
+            'double_quoted' => true,
+            'heredoc_syntax' => true,
+        ],
+        'braces' => [
+            'allow_single_line_closure' => true,
+            'position_after_functions_and_oop_constructs' => 'next',
+            'position_after_control_structures' => 'next',
+            'position_after_anonymous_constructs' => 'same',
+        ],
+        'single_blank_line_at_eof' => true,
+    ])
+    ->setFinder(
+        $finder
+    )
     ;

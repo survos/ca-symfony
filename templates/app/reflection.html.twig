@@ -37,7 +37,15 @@
 {% endblock %}
 
 {% block files %}
-    <table class="table">
+    <table class="table table-bordered">
+        <thead>
+        <tr>
+            <th>Status</th>
+            <th>File/Classes</th>
+            <th>Initial Includes</th>
+        </tr>
+        </thead>
+
         <tbody>
         {% for filename, phpFile in files %}
             <tr valign="top">
@@ -45,15 +53,26 @@
                     {{ phpFile.status }}
                 </td>
                 <td>
-                    {{ phpFile.relativeFilename }}
-                </td>
-                <td>
-                    {% for phpClass in phpFile.phpClasses %}
-                        {{ phpClass.realPath }}
-                        {% for functionName in phpClass.functionList %}
-                            <small>{{ functionName }}()</small>
+                    {{ phpFile.relativeFilename }} <span class="badge badge-light">{{ phpFile.includes|length }}</span>
+                    <ul class="list">
+                        {% for includeFile, original in phpFile.initialIncludes %}
+                            <li class="list-item">{{ includeFile }}->{{ original }}</li>
                         {% endfor %}
-                    {% endfor %}
+                    </ul>
+
+                    <ul class="list-unstyled">
+                        {% for phpClass in phpFile.phpClasses %}
+                            <a target="_blank" href="file://{{ phpClass.realPath }}">
+                                {{ phpClass.realPath }}
+                            </a>
+                            <b>namespace {{ phpClass.namespace  }};</b>
+                            class {{ phpClass.name }} {...}<br />
+                            As Use: use {{ phpClass.use }};
+                            {#                        {% for functionName in phpClass.functionList %}#}
+                            {#                            <small>{{ functionName }}()</small>#}
+                            {#                        {% endfor %}#}
+                        {% endfor %}
+                    </ul>
                 </td>
             </tr>
         {% endfor %}
