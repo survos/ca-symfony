@@ -19,18 +19,25 @@ use Symfony\Component\Finder\Finder;
 class FixCommand extends Command
 {
     private $uses = [];
+
     private $includes = []; // track each include/require, so we can map to use statement
+
     private string $usesString;
+
     private $autoloadMap = [];
+
     protected static $defaultName = 'app:fix';
+
     /**
      * @var LoggerInterface
      */
     private LoggerInterface $logger;
+
     /**
      * @var FixNamespaceService
      */
     private FixNamespaceService $fixNamespaceService;
+
     /**
      * @var AppController
      */
@@ -53,7 +60,6 @@ class FixCommand extends Command
             ->addOption('add-namespaces', null, InputOption::VALUE_NONE, 'add namespace to top of file')
         ;
     }
-
     
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
@@ -75,8 +81,4 @@ class FixCommand extends Command
         
         return Command::SUCCESS;
     }
-    
-
-    
-
 }

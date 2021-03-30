@@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\ORM\Mapping\UniqueConstraint;
+
 /**
  * @ORM\Entity(repositoryClass=PhpFileRepository::class)
  * @ORM\Table(
@@ -18,14 +19,21 @@ use Doctrine\ORM\Mapping\UniqueConstraint;
  */
 class PhpFile
 {
-    const IS_INC = 'inc'; // e.g. setup or a function list
-    const IS_CLASS = 'class'; // one or more classes defined
-    const IS_SCRIPT = 'script'; // like index.php
-    const IS_VIEW = 'view'; // template
-    const IS_INTERFACE = 'interface';
-    const IS_TRAIT = 'trait'; // one or more classes defined
-    const IS_IGNORED = 'ignored'; // one or more classes defined
-    const IS_CLI = 'cli'; // one or more classes defined
+    public const IS_INC = 'inc'; // e.g. setup or a function list
+
+    public const IS_CLASS = 'class'; // one or more classes defined
+
+    public const IS_SCRIPT = 'script'; // like index.php
+
+    public const IS_VIEW = 'view'; // template
+
+    public const IS_INTERFACE = 'interface';
+
+    public const IS_TRAIT = 'trait'; // one or more classes defined
+
+    public const IS_IGNORED = 'ignored'; // one or more classes defined
+
+    public const IS_CLI = 'cli'; // one or more classes defined
 
     /**
      * @ORM\Id
@@ -87,7 +95,8 @@ class PhpFile
     public function __construct($realPath, array $dirsToRemove)
     {
         $cleanerDir = $realPath;
-        foreach ($dirsToRemove as $dirToRemove) {
+        foreach ($dirsToRemove as $dirToRemove)
+        {
             $cleanerDir = str_replace($dirToRemove . '/', '', $cleanerDir);
         }
         $this
@@ -104,7 +113,6 @@ class PhpFile
         // hack for keyword problem.
         $path = preg_replace('|/lib/Print|', '/lib/PrintUtilities', $path);
         return $path;
-
     }
 
     public function getId(): ?int
@@ -133,36 +141,62 @@ class PhpFile
     {
         // look for 'class' in the first column, if not, look for functions
         $this->rawPhp = $rawPhp;
-        if (preg_match('/^(abstract |final |public )?(class |interface |trait )([A-Za-z_0-9]+)\s/im', $rawPhp, $m)) {
+        if (preg_match('/^(abstract |final |public )?(class |interface |trait )([A-Za-z_0-9]+)\s/im', $rawPhp, $m))
+        {
             $this->setStatus(self::IS_CLASS);
-        } elseif (preg_match('/interface ([A-Za-z_0-9]+) /i', $rawPhp, $m)) {
+        }
+        elseif (preg_match('/interface ([A-Za-z_0-9]+) /i', $rawPhp, $m))
+        {
             $this->setStatus(self::IS_INTERFACE);
-        } elseif (preg_match('/trait ([A-Za-z_0-9]+) /i', $rawPhp, $m)) {
+        }
+        elseif (preg_match('/trait ([A-Za-z_0-9]+) /i', $rawPhp, $m))
+        {
             $this->setStatus(self::IS_TRAIT);
-        } elseif (preg_match('/function ([A-Za-z_0-9]+)[\s|(]/i', $rawPhp, $m)) {
+        }
+        elseif (preg_match('/function ([A-Za-z_0-9]+)[\s|(]/i', $rawPhp, $m))
+        {
             $this->setStatus(self::IS_INC);
-        } elseif (preg_match('|^#!/usr/|', $rawPhp, $m)) {
+        }
+        elseif (preg_match('|^#!/usr/|', $rawPhp, $m))
+        {
             $this->setStatus(self::IS_CLI);
-        } elseif (preg_match('|setup\.php|', $rawPhp, $m)) {
+        }
+        elseif (preg_match('|setup\.php|', $rawPhp, $m))
+        {
             $this->setStatus(self::IS_SCRIPT);
-        } elseif (preg_match('{/views|printTemplates/}', $this->getRealPath(), $m)) {
+        }
+        elseif (preg_match('{/views|printTemplates/}', $this->getRealPath(), $m))
+        {
             $this->setStatus(self::IS_VIEW);
-        } elseif (preg_match('{/Flickr|demos|/old/}', $this->getRealPath(), $m)) {
+        }
+        elseif (preg_match('{/Flickr|demos|/old/}', $this->getRealPath(), $m))
+        {
             $this->setStatus(self::IS_IGNORED);
-        } elseif (preg_match('|/mkstopwords|', $this->getRealPath(), $m)) {
+        }
+        elseif (preg_match('|/mkstopwords|', $this->getRealPath(), $m))
+        {
             $this->setStatus(self::IS_CLI);
-        } elseif (preg_match('|/tools/merge|', $this->getRealPath(), $m)) {
+        }
+        elseif (preg_match('|/tools/merge|', $this->getRealPath(), $m))
+        {
             $this->setStatus(self::IS_CLI);
-        } elseif (preg_match('{/app/lib|(preload|version)\.php}', $this->getRealPath(), $m)) {
+        }
+        elseif (preg_match('{/app/lib|(preload|version)\.php}', $this->getRealPath(), $m))
+        {
             $this->setStatus(self::IS_INC);
-        } else {
-            if ($this->getPhpClasses()->count()) {
+        }
+        else
+        {
+            if ($this->getPhpClasses()->count())
+            {
                 $this->setStatus(self::IS_CLASS);
-            } else {
+            }
+            else
+            {
                 dd($this->getRealPath(), $rawPhp);
             }
         }
-            return $this;
+        return $this;
     }
 
     public function getStatus(): ?string
@@ -204,10 +238,10 @@ class PhpFile
 
     public function addPhpClass(PhpClass $phpClass): self
     {
-        if (!$this->phpClasses->contains($phpClass)) {
+        if (!$this->phpClasses->contains($phpClass))
+        {
             $this->phpClasses[] = $phpClass;
             $phpClass->setPhpFile($this);
-
         }
 
         return $this;
@@ -215,9 +249,11 @@ class PhpFile
 
     public function removePhpClass(PhpClass $phpClass): self
     {
-        if ($this->phpClasses->removeElement($phpClass)) {
+        if ($this->phpClasses->removeElement($phpClass))
+        {
             // set the owning side to null (unless already changed)
-            if ($phpClass->getPhpFile() === $this) {
+            if ($phpClass->getPhpFile() === $this)
+            {
                 $phpClass->setPhpFile(null);
             }
         }
@@ -276,7 +312,8 @@ class PhpFile
     // return true if realpath is added to list
     public function addInclude($realpath, $info): bool
     {
-        if (array_key_exists($realpath, $this->includes)) {
+        if (array_key_exists($realpath, $this->includes))
+        {
             return false;
         }
         $this->includes[$realpath] = $info;
@@ -294,7 +331,4 @@ class PhpFile
 
         return $this;
     }
-
-
-
 }

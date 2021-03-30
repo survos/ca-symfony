@@ -10,8 +10,10 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class PhpClass
 {
-    const RAW_INCLUDE = 'raw_include';
-    const NORMAL_CLASS = 'class';
+    public const RAW_INCLUDE = 'raw_include';
+
+    public const NORMAL_CLASS = 'class';
+
     /**
      * @ORM\Id
      * @ORM\GeneratedValue
@@ -124,7 +126,8 @@ class PhpClass
 
     public function getUse()
     {
-        return $this->isClass() ? $this->guessNamespace() . '\\' . $this->getName() : '';
+        return $this->guessNamespace() . '\\' . $this->getName();
+//        return $this->isClass() ? $this->guessNamespace() . '\\' . $this->getName() : '';
     }
 
     public function getType(): ?string
@@ -134,7 +137,7 @@ class PhpClass
 
     public function setType(?string $type): self
     {
-        $this->type = $type;
+        $this->type = trim($type);
 
         return $this;
     }
@@ -215,6 +218,4 @@ class PhpClass
 
         return $this;
     }
-
-
 }

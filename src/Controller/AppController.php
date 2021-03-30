@@ -20,13 +20,14 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Routing\RouterInterface;
 use Twig\Environment;
 
-
-
 class AppController extends AbstractController
 {
     private ParameterBagInterface $bag;
+
     private LoggerInterface $logger;
+
     private EntityManagerInterface $entityManager;
+
     private string $namespacedDir;
 
     /**
@@ -40,7 +41,6 @@ class AppController extends AbstractController
         $this->namespacedDir=  $this->bag->get('namespaced_dir');
     }
 
-
     /**
      * @Route("/providence/old/{oldRoute}", name="app_legacy_index", requirements={"oldRoute"=".+"})
 //     * @Route("/providence", name="app_legacy_route")
@@ -52,7 +52,6 @@ class AppController extends AbstractController
 
         dd($result);
         dd($root, $oldRoute);
-
     }
 
     /**
@@ -72,10 +71,10 @@ class AppController extends AbstractController
     {
         return $this->render('app/homepage.html.twig', [
         ]);
-
     }
 
-    private function removeDir($str) {
+    private function removeDir($str)
+    {
         return str_replace($this->bag->get('kernel.project_dir'), '', $str);
     }
 
@@ -104,14 +103,17 @@ class AppController extends AbstractController
 
         // if this is a link, resolve it.
         $dirsToRemove = [$dirToRemove];
-        if (is_link($dirToRemove) && ($realPath = readlink($dirToRemove)) ) {
+        if (is_link($dirToRemove) && ($realPath = readlink($dirToRemove)))
+        {
             array_push($dirsToRemove, $realPath);
         }
 
         set_error_handler(function ($errno, $errstr, $errfile, $errline) {
             $this->logger->warning($errstr);
         });
-        foreach ($finder as $file) {
+
+        foreach ($finder as $file)
+        {
             $absolutePath = $file->getRealPath();
             $phpFile = (new PhpFile($absolutePath, $dirsToRemove))
                 ->setFilename($file->getFilename());
@@ -125,21 +127,28 @@ class AppController extends AbstractController
         $fixNamespaceService->setFileMap($files);
 
         /** @var PhpFile $phpFile */
-        foreach ($files as $realPath => $phpFile) {
+        foreach ($files as $realPath => $phpFile)
+        {
+            if (!str_contains($phpFile->getRealPath(), '/app/lib/Parsers')) {
+//                continue;
+            }
             switch ($phpFile->getStatus()) {
                 case PhpFile::IS_CLASS:
 //                    $allIncludes = []; // $phpFile->getInitialIncludes();
 //                    $fixNamespaceService->loadIncludes($phpFile, $allIncludes);
 //                    $phpFile->setIncludes($allIncludes);
                     // write the new classes
-                    foreach ($phpFile->getPhpClasses() as $phpClass) {
-                        if ($fixNamespaceService->processHeader($phpClass)) {
+                    foreach ($phpFile->getPhpClasses() as $phpClass)
+                    {
+                        if ($fixNamespaceService->processHeader($phpClass))
+                        {
                             $fixNamespaceService->writeClass($phpClass);
                         }
                     }
                     // extract the classes
                     break;
                 case PhpFile::IS_INC:
+//                    dd($phpFile);
 
                     // someday namespace this
                     // count the functions so we can use them when this file is included
@@ -148,14 +157,12 @@ class AppController extends AbstractController
                     // move to bin/?
                     break;
             }
-
         }
 
         return $this->render('app/reflection.html.twig', [
             'files' => $files,
             'classes' => [] // get_declared_classes()
         ]);
-
     }
 
     private function oldWay()
@@ -171,15 +178,19 @@ class AppController extends AbstractController
 
         $fileToClass = [];
         $classesToWrite = array_filter(get_declared_classes(), fn($className) => preg_match('/Db/', $className));
-        foreach ($classesToWrite as $class) {
+        foreach ($classesToWrite as $class)
+        {
             $r = (new \ReflectionClass($class));
 
             // if this is a file with multiple classes, break them apart
-            if ($r->isUserDefined()) {
-                if (!preg_match('{/providence/}', $r->getFileName()) ) {
+            if ($r->isUserDefined())
+            {
+                if (!preg_match('{/providence/}', $r->getFileName()))
+                {
                     continue;
                 }
-                if (preg_match('{/providence/vendor/}', $r->getFileName()) ) {
+                if (preg_match('{/providence/vendor/}', $r->getFileName()))
+                {
                     continue;
                 }
 
@@ -187,17 +198,20 @@ class AppController extends AbstractController
 //                    continue;
 //                }
                 $classFilename = $r->getFileName();
-                if ($class === 'ModelController') {
+                if ($class === 'ModelController')
+                {
 //                dd($classFilename, $r);
                 }
                 // get a reference to the file
                 $f = $files[$classFilename] ?? null;
-                if (empty($f)) {
+                if (empty($f))
+                {
                     dd($classFilename);
                     continue;
                 }
 
-                if ($r->getName() === 'ModelController') {
+                if ($r->getName() === 'ModelController')
+                {
 //                    dd($f);
                 }
 
@@ -218,15 +232,18 @@ class AppController extends AbstractController
 
 //                    ->setDocComment($r->getDocComment())
 //                    ->setPhp(join("\n", array_slice($f['phpLines'], $startLine, $endLine)))
-                ;
+                
 
                 $newHeader = [];
-                if ($class  == 'BaseServiceController') {
+                if ($class  == 'BaseServiceController')
+                {
 //                    dd($r, $r->getFileName(), $includedFileInfo, $includedFileInfo['classes']);
                 }
 
-                if ($parent = $r->getParentClass()) {
-                    if (!$parent->isInternal()) {
+                if ($parent = $r->getParentClass())
+                {
+                    if (!$parent->isInternal())
+                    {
                         // to get the classes that may have been included from this!
                         $parentFile = $files[$parent->getFileName()];
                         $parentNs = ClassStructure::getNamespaceFromPath(pathinfo($parent->getFileName(), PATHINFO_DIRNAME)) . '/' . $parent->getName();
@@ -241,10 +258,13 @@ class AppController extends AbstractController
 
                 $this->extractIncludes();
 
-                if (count($cs->getIncludes())) {
-                    foreach ($cs->getIncludes() as $useNs=>$fn) {
+                if (count($cs->getIncludes()))
+                {
+                    foreach ($cs->getIncludes() as $useNs=>$fn)
+                    {
                         // skip if it it's also the name of the namespace
-                        if ($useNs <> $cs->getNs()) {
+                        if ($useNs <> $cs->getNs())
+                        {
                             array_push($newHeader, "use $useNs; // from ".$this->removeDir($fn));
                         }
                     }
@@ -279,9 +299,11 @@ class AppController extends AbstractController
 
         // go through all the files, check the classes and rename, add namespace, etc.
         $newFiles=[];
-        foreach ($files as $filename => $f) {
+        foreach ($files as $filename => $f)
+        {
             /** @var ClassStructure  $cs */
-            foreach ($f['classes'] as $className=>$cs) {
+            foreach ($f['classes'] as $className=>$cs)
+            {
                 $ns = $cs->getNs();
 
                 // one class, and it matches, this is what we hope for
@@ -292,15 +314,20 @@ class AppController extends AbstractController
                     $newFilename = $this->bag->get('namespaced_dir') .   $cs->getFilenameToWrite();
                     dd($newFilename);
                     $newDir = dirname($newFilename);
-                    if (!is_dir($newDir)) {
-                        try {
+                    if (!is_dir($newDir))
+                    {
+                        try
+                        {
                             mkdir($newDir, 0777, true);
-                        } catch (\Exception $e) {
+                        }
+                        catch (\Exception $e)
+                        {
                             dd($newDir, $e->getMessage());
                         }
                     }
 
-                    if ($cs->getExtends()) {
+                    if ($cs->getExtends())
+                    {
 //                        dd($cs->getExtends());
                     }
                     // the new php replaces the required_once with the use statements, recursively...
@@ -317,23 +344,29 @@ class AppController extends AbstractController
 
 
         // find the CA classes
-        foreach (get_declared_classes() as $class) {
+        foreach (get_declared_classes() as $class)
+        {
             $r = (new \ReflectionClass($class));
-            if ($r->isInternal()) {
+            if ($r->isInternal())
+            {
                 continue;
             }
-            if (array_key_exists($r->getFileName(), $files) ) {
+            if (array_key_exists($r->getFileName(), $files))
+            {
                 // we have a winner!  Idea: create new namespaced files in a new directory.
                 // we only want the part before the class starts.
                 $headerLines = array_slice($phpLines, 0, $r->getStartLine());
 
-                foreach ($headerLines as $line) {
-                    $pattern = "/(include|require)_once\((.*?)\.[\"']\/(.*?).php[\"']\)/";
+                foreach ($headerLines as $line)
+                {
+                    $pattern = "/(include|require)_once\\((.*?)\\.[\"']\\/(.*?).php[\"']\\)/";
                     // walk through the includes and create namespaces from them.  Might not be any.
-                    if (preg_match($pattern, $line, $m)) {
+                    if (preg_match($pattern, $line, $m))
+                    {
                         // if we get the full filename, we can look up the new class and replace it.
                         $ca_constant = $m[2];
-                        if (!defined($ca_constant)) {
+                        if (!defined($ca_constant))
+                        {
                             throw new \Exception($ca_constant . " not defined, " . $line . ' in ' . $r->getFileName());
                         }
 
@@ -344,10 +377,10 @@ class AppController extends AbstractController
 
 
                         dd($m, $includedFileInfo);
-
                     }
                 }
-                if ($r->getName() == 'Db') {
+                if ($r->getName() == 'Db')
+                {
                     dd($headerLines, $r);
                     dd($r);
                 }
@@ -358,9 +391,8 @@ class AppController extends AbstractController
 
         dd($includedFiles, get_declared_classes());
 
-            $reflect = (new \ReflectionClass(Db::class));
+        $reflect = (new \ReflectionClass(Db::class));
         dd($reflect);
-
     }
 
     /**
@@ -387,5 +419,4 @@ class AppController extends AbstractController
 //            'controller_name' => 'AppController',
 //        ]);
     }
-
 }

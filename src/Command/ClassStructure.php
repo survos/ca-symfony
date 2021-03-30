@@ -6,20 +6,34 @@ namespace App\Command;
 
 class ClassStructure
 {
-    const RAW_INCLUDE = 'raw-include'; // continue to use include, not "use"
+    public const RAW_INCLUDE = 'raw-include'; // continue to use include, not "use"
+
     private string $filename;
+
     private string $ns;
+
     private string $docComment = '';
+
     private string $php;
+
     private ?string $originalPhp;
+
     private string $classname;
+
     private string $path = '~'; // root
+
     private array $includes = [];
+
     private int $lineCount = 0;
+
     private $classList = [];
+
     private ?string $header = null;
+
     private string $originalheader;
+
     private string $status;
+
     private ?\ReflectionClass $extends;
 
     /**
@@ -41,6 +55,7 @@ class ClassStructure
     }
 
     private int $startLine;
+
     private int $endLine;
 
     /**
@@ -209,14 +224,16 @@ class ClassStructure
     {
         $this->status = 'loading';
         // total hack!
-        if (!defined('__CA_BASE_DIR__')) {
+        if (!defined('__CA_BASE_DIR__'))
+        {
             // hack for installing via composer
             define('__CA_BASE_DIR__', realpath(__DIR__ . '/../../vendor/collectiveaccess/providence'));
 
             // could also get this from the env vars, and pass it.
 //            define('__CA_BASE_DIR__', $x=realpath($y = __DIR__ . '/../../../pr'));
 //            dd($x, $y);
-            if (!is_dir(__CA_BASE_DIR__)) {
+            if (!is_dir(__CA_BASE_DIR__))
+            {
                 throw new \Exception(sprintf('__CA_BASE_DIR__ is not a valid directory [%s]', __CA_BASE_DIR__));
             }
             define('__CA_APP_NAME__', 'ca');
@@ -225,7 +242,7 @@ class ClassStructure
 
         $this->filename = $file->getRealPath();
 //        $this->originalPhp = file_get_contents($this->filename);
-        $this->lineCount = count(file($this->filename)) - 1;;
+        $this->lineCount = count(file($this->filename)) - 1;
         $this->path = str_replace($dirPathToRemove, '', $file->getRealPath());
         $this->filename = $this->path . '/' . $file->getFilename(); // ??
 
@@ -245,14 +262,14 @@ class ClassStructure
 //        $this->extractHeader();
     }
 
-    public function addInclude(string $namespace, string $filename) {
+    public function addInclude(string $namespace, string $filename)
+    {
 //        dump($namespace, $filename);
         $namespace = str_replace('/', '\\', $namespace); // from includes.
         $namespace = str_replace('.php', '', $namespace); // from includes.
         assert(!preg_match('/\//', $namespace), $namespace . " " . $filename);
         $this->includes[$namespace] = $filename;
     }
-
 
     /**
      * @return string
@@ -363,25 +380,28 @@ class ClassStructure
         return $this;
     }
 
-
-
-    //
+    
     private function extractHeader()
     {
-
         dd("old...");
         // really we just want the part between the opening <?php and the start of the class
-        if (preg_match('/(<\?php(.*?)\n)(abstract |final )?(class |function )/ms', $this->originalPhp, $headerMatch)) {
+        if (preg_match('/(<\?php(.*?)\n)(abstract |final )?(class |function )/ms', $this->originalPhp, $headerMatch))
+        {
             $autoloadMap = $this->getMap();
             $header = $headerMatch[1];
             // get all the includes, so we have them later when we need to dump them
-            if (preg_match_all("/(include|require)_once\(((.*?)\.[\"']+((.*?).php)[\"']+)\)/", $header, $mm, PREG_SET_ORDER)) {
-                foreach ($mm as $m) {
+            if (preg_match_all("/(include|require)_once\\(((.*?)\\.[\"']+((.*?).php)[\"']+)\\)/", $header, $mm, PREG_SET_ORDER))
+            {
+                foreach ($mm as $m)
+                {
                     list($orig, $incType, $include, $path, $phpFile, $incFile) = $m;
                     // map the path to the real root
-                    if (defined($path)) {
+                    if (defined($path))
+                    {
                         $actualPath = constant($path) . $phpFile;
-                    } else {
+                    }
+                    else
+                    {
                         dd($path);
                     }
                     $this->path = $path;
@@ -404,15 +424,17 @@ class ClassStructure
             // we need to add a Use for every class that's in the
             $autoloadMap = $this->getMap();
             $header = preg_replace_callback(
-                "/(include|require)_once\((.*?)\.[\"']\/(.*?).php[\"']\)/",
+                "/(include|require)_once\\((.*?)\\.[\"']\\/(.*?).php[\"']\\)/",
                 function ($m) use ($autoloadMap) {
                     $prefix=$m[2];
-                    if (array_key_exists($prefix, $autoloadMap)) {
-
-                        $use = sprintf("%s\%s", $autoloadMap[$prefix], str_replace('/', '\\', $m[3]));
+                    if (array_key_exists($prefix, $autoloadMap))
+                    {
+                        $use = sprintf("%s\\%s", $autoloadMap[$prefix], str_replace('/', '\\', $m[3]));
                         $this->uses[$use] = $m[0];
                         return sprintf("// use %s; // %s", $use, $m[0]);
-                    } else {
+                    }
+                    else
+                    {
                         return $m[0]; // dont replace
                     }
                 },
@@ -429,7 +451,9 @@ class ClassStructure
 
             // replace the header
             $php = str_replace($oldHeader, $header, $php);
-        } else {
+        }
+        else
+        {
             // probably a template or some definitions.  OK to keep as include
 //                array_push($keepAsIncludes, $file->getFilename());
 //                $this->logger->error("no class or function found", [$absoluteFilePath]);
@@ -446,26 +470,25 @@ class ClassStructure
         return $path . '/' . $this->getClassname() . '.php';
     }
 
-    static public function getNamespaceFromPath($path): ?string
+    public static function getNamespaceFromPath($path): ?string
     {
-
         $namespace = null;
-            // hack!
-            $namespace = $path;
-            // @todo: make env var?
-            $namespace = str_replace('/home/tac/tacman/providence/', '', $namespace);
-            $namespace = str_replace('vendor/collectiveaccess/providence/', '', $namespace);
-            // use the map?  Or just make everything CA?
+        // hack!
+        $namespace = $path;
+        // @todo: make env var?
+        $namespace = str_replace('/home/tac/tacman/providence/', '', $namespace);
+        $namespace = str_replace('vendor/collectiveaccess/providence/', '', $namespace);
+        // use the map?  Or just make everything CA?
 //            $namespace = str_replace('app/lib', 'CA/lib', $namespace);
 
 //            $namespace = preg_replace('|^.*?/app/|', 'CA\\', $namespace);
-            $namespace = str_replace('/', '\\', $namespace);
+        $namespace = str_replace('/', '\\', $namespace);
 //            $namespace = str_replace('.php', '', $namespace);
-        if (preg_match('|app|', $path)) {
+        if (preg_match('|app|', $path))
+        {
         }
         return 'CA\\' . $namespace;
     }
-
 
     public function top($n=1800)
     {
@@ -494,25 +517,31 @@ class ClassStructure
     {
         // replace the requires with use, etc.
         dd($this->includes);
-            //
+        //
 //            dd($mm[0]);
-            // we need to add a Use for every class that's in the
-        if (preg_match($pattern = '/(<\?php.*?\n)(abstract |final |public )?(class |function |interface |trait )/ms', $php, $mm)) {
-
+        // we need to add a Use for every class that's in the
+        if (preg_match($pattern = '/(<\?php.*?\n)(abstract |final |public )?(class |function |interface |trait )/ms', $php, $mm))
+        {
             $header = preg_replace_callback(
                 $pattern,
                 function ($m) use ($uses) {
-                    try {
+                    try
+                    {
                         $prefix=$m[2];
-                        if (array_key_exists($prefix, $this->getMap())) {
-                            $use = sprintf("%s\%s", $this->getMap()[$prefix], str_replace('/', '\\', $m[3]));
+                        if (array_key_exists($prefix, $this->getMap()))
+                        {
+                            $use = sprintf("%s\\%s", $this->getMap()[$prefix], str_replace('/', '\\', $m[3]));
                             $uses[$use] = $m[0];
 //                            dd($uses, $prefix, $this->getMap());
                             return sprintf("// use %s; // %s", $use, $m[0]);
-                        } else {
+                        }
+                        else
+                        {
                             return $m[0]; // dont replace
                         }
-                    } catch (\Exception $exception) {
+                    }
+                    catch (\Exception $exception)
+                    {
                         dd($m, $exception->getMessage());
                     }
                 },
@@ -530,7 +559,9 @@ class ClassStructure
 
             // replace the header
             $php = str_replace($oldHeader, $header, $php);
-        } else {
+        }
+        else
+        {
             dump(substr($php, 0, 1024));
 //            throw new \Exception($this->filename . " Pattern $pattern not found in  " . substr($php, 0, 2300));
 
@@ -565,5 +596,4 @@ class ClassStructure
             'self::$opo_config->get("views_directory")' => 'CA\Views'
         ];
     }
-
 }

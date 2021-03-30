@@ -1,4 +1,7 @@
 # This script assumes composer has been run and installed providence in vendor/collectiveaccess
+# Use PhpStorm "Reformat Code" before doing anything.
+
+
 # for testing, this can also be used, reset the ca constant in .env.local
 #      git clone --depth 1 git@github.com:collectiveaccess/providence public/providence
 
@@ -50,6 +53,7 @@ cd ../../..
 
 echo "replacing includes and requires with use\n";
 bin/console app:fix -vv
+find /home/tac/survos/ca/ca-fix/ca -type f -name '*.php' -print0 | xargs -0 -L1 -P4 -- php -l -f
 
 # remove the unused imports and clean it up.
 echo "Fixing the final files\n";
@@ -70,4 +74,5 @@ echo "Fixing the final files\n";
 #sed -i 's/namespace CA/namespace CA\lib/g' vendor/collectiveaccess/providence/app/*.php 
 #grep -rl oldtext . | xargs sed -i 's/oldtext/newtext/g'
 #grep -rl "namespace CA" vendor/collectiveaccess/providence/
+
 
