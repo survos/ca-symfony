@@ -11,6 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
 class PhpClass
 {
     const RAW_INCLUDE = 'raw_include';
+    const NORMAL_CLASS = 'class';
     /**
      * @ORM\Id
      * @ORM\GeneratedValue
@@ -64,6 +65,11 @@ class PhpClass
      */
     private $includes = [];
 
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $status;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -113,7 +119,7 @@ class PhpClass
 
     public function isClass(): bool
     {
-        return $this->getPhpFile()->getStatus() === PhpFile::IS_CLASS;
+        return $this->getStatus() === self::NORMAL_CLASS;
     }
 
     public function getUse()
@@ -138,7 +144,7 @@ class PhpClass
         return $this->realPath;
     }
 
-    public function setRealPath(?string $realPath): self
+    public function setRealPath(string $realPath): self
     {
         $this->realPath = $realPath;
 
@@ -194,6 +200,18 @@ class PhpClass
     public function setIncludes(?array $includes): self
     {
         $this->includes = $includes;
+
+        return $this;
+    }
+
+    public function getStatus(): ?string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(?string $status): self
+    {
+        $this->status = $status;
 
         return $this;
     }

@@ -91,15 +91,6 @@ class AppController extends AbstractController
         define('$this->ops_theme_plugins_path', __CA_BASE_DIR__ . '/themes/plugins');
         define('$this->ops_application_plugins_path', __CA_BASE_DIR__ . '/app/plugins-maybe');// ???
         define('$vs_base_widget_dir', __CA_BASE_DIR__ . '/app/widgets');// ???
-//        define('',  __CA_BASE_DIR__ . '/app/views-maybe');// ???
-
-//        dd(__CA_LIB_DIR__);
-//        require_once('./app/helpers/post-setup.php');
-//        $includedFiles = array_filter(get_included_files(), fn(string $filename) => preg_match('{/vendor/collectiveaccess/}', $filename) && !preg_match('{/providence/vendor|app/tmp}', str_replace($dir, '', $filename)));
-
-        // for testing
-//        $includedFiles = array_filter($includedFiles, fn(string $filename) => preg_match('/MemoryCache/', $filename));
-//        dd($includedFiles);
 
         $files = [];
         // initialize the files, we'll eventually use these for namespaces.
@@ -108,7 +99,7 @@ class AppController extends AbstractController
         $finder
             ->in($dirToRemove = ($dir . '/vendor/collectiveaccess/providence'))
             ->filter(static function (\SplFileInfo $file) {
-                return $file->isFile() && !preg_match('/providence\/(app\/tmp|vendor|tests)/', $file->getRealPath()) && !preg_match('/(xxxphpqrcode)/', $file->getRealPath()) && preg_match('//', $file->getRealPath()) && preg_match('/\.(php)$/i', $file->getFilename());
+                return $file->isFile() && !preg_match('/((Office|ImageMagick|SparqlEndpoint|BagIt|SimpleZip|sFTP|phpFlickr|vimeo|S3)\.php)|providence\/(app\/tmp|vendor|tests)/', $file->getRealPath()) && !preg_match('/(xxxphpqrcode)/', $file->getRealPath()) && preg_match('//', $file->getRealPath()) && preg_match('/\.(php)$/i', $file->getFilename());
             });
 
         // if this is a link, resolve it.
@@ -124,9 +115,8 @@ class AppController extends AbstractController
             $absolutePath = $file->getRealPath();
             $phpFile = (new PhpFile($absolutePath, $dirsToRemove))
                 ->setFilename($file->getFilename());
-            $fixNamespaceService->extractIncludes($phpFile); // no nesting, just the ones explicitly listed.
+//            $fixNamespaceService->extractIncludes($phpFile); // no nesting, just the ones explicitly listed.
             $fixNamespaceService->createClasses($phpFile);
-
 //                $this->entityManager->persist($phpFile);
             $files[$file->getRealPath()] = $phpFile;
         }

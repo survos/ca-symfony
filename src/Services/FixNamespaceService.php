@@ -44,10 +44,10 @@ class FixNamespaceService
 
         $finder = new Finder();
 
-        $finder->files()->in($dir)->files()->name('*.php')->filter(
+        $finder->files()->in($dir)->files()->name('*.php')->notName(['Office.php'])->filter(
             fn(\SplFileInfo $file) =>
 //                dd($file) &&
-            !preg_match('{/(views|tmp|templates|providence/vendor|printTemplates)/}', $file->getRealPath())
+            !preg_match('{/(views|tmp|templates|providence/vendor|Office.php|printTemplates)/}', $file->getRealPath())
         );
 
         //        $finder->files()->in($dir)->files()->name('*.php')->notContains('#!/usr/bin/env php')->filter(
@@ -191,9 +191,12 @@ class FixNamespaceService
 
                 $phpClass = (new PhpClass())
                     ->setName($className)
-                    ->setType('class')
+                    ->setType(PhpClass::RAW_INCLUDE)
 //                    ->setOriginalPhp("class $className\n{\n\n" . $functionsPhp . "\n}" )
                 ;
+
+
+//                dd($phpClass, $mm);
 
                 // get the list of functions so we can import them.
                 // use function My\Full\functionName as func;
@@ -217,6 +220,8 @@ class FixNamespaceService
 
                 $phpFile->addPhpClass($phpClass);
 
+
+
 //                $phpFile->setRawPhp(str_replace($functionsPhp, '', $php));
                 $phpFile
                     ->setStatus(PhpFile::IS_CLASS) // we're forcing it into a class
@@ -230,7 +235,10 @@ class FixNamespaceService
                 } else {
                     dd($phpClass);
                 }
+
             }
+
+
 
             if ($phpFile->getPhpClasses()->count() === 0) {
                 //
@@ -240,25 +248,30 @@ class FixNamespaceService
                 }
 
                 // hack on a class, even if it's just a bunch of includes or constants
-                $className = str_replace('.php', '', pathinfo($phpFile->getRealPath(), PATHINFO_BASENAME));
-                $phpClass = (new PhpClass())
-                    ->setName($className)
-                    ->setType('class')
-                    ->setOriginalPhp( "\nclass $className\n{\n\n"  . "}" );
-                $phpFile->setHeaderPhp("// class created from name\n\n" . $php)
-                    ->addPhpClass($phpClass);
+                if (false) {
+                    $className = str_replace('.php', '', pathinfo($phpFile->getRealPath(), PATHINFO_BASENAME));
+                    $phpClass = (new PhpClass())
+                        ->setName($className)
+                        ->setType('class')
+                        ->setOriginalPhp( "\nclass $className\n{\n\n"  . "}" );
+                    $phpFile->setHeaderPhp("// class created from name\n\n" . $php)
+                        ->addPhpClass($phpClass);
+                }
+            } else {
+                // set the right file names to match the classes.
+                foreach ($phpFile->getPhpClasses() as $phpClass) {
+                    $newFilename = $this->namespacedDir . '/' . ($relativeFilename = PhpFile::applyNamespaceHacks($phpClass->getPhpFile()->getRelativePath()) . sprintf('/%s.php', $phpClass->getName()));
+                    $phpClass->setRealPath($newFilename);
+                    dd('no classes!', $phpClass->getRealPath());
+                    $ns = $this->getNamespaceFromPath($phpClass->getPhpFile()->getRelativePath());
+                    if (count($phpClass->getFunctionList())) {
+                        $ns .= "\\" . $className; // functions aren't in a class, but instead namespaced.
+                    }
+                    $phpClass->setNamespace($ns);
+                }
             }
         }
 
-        if (!empty($phpClass)) {
-            $newFilename = $this->namespacedDir . '/' . ($relativeFilename = PhpFile::applyNamespaceHacks($phpClass->getPhpFile()->getRelativePath()) . sprintf('/%s.php', $phpClass->getName()));
-            $phpClass->setRealPath($newFilename);
-            $ns = $this->getNamespaceFromPath($phpClass->getPhpFile()->getRelativePath());
-            if (count($phpClass->getFunctionList())) {
-                $ns .= "\\" . $className; // functions aren't in a class, but instead namespaced.
-            }
-            $phpClass->setNamespace($ns);
-        }
 
 
         // get a list of the files we're going to need
@@ -454,12 +467,6 @@ END;
 
         file_put_contents($filename, $contents);
 
-        return;
-        $output = exec("php -l $filename");
-        if (preg_match('/^Errors parsing/', $output)) {
-            $this->logger->error($output, [$filename, $contents, $output]);
-//            dd();
-        }
 
 //        dd($filename, $contents);
     }
@@ -528,8 +535,12 @@ END;
     public function writeClass(PhpClass $phpClass): ?string
         {
             $phpFile = $phpClass->getPhpFile();
-
             $newFilename = $phpClass->getRealPath();
+            if (empty($newFilename)) {
+                dd($phpClass);
+            }
+            assert(!empty($newFilename), "Empty newfilename in " . $phpClass->getPhpFile()->getRealPath());
+
             $ns = $phpClass->getNamespace();
             $this->logger->info("creating", [$newFilename]);
         $newClassPhp = <<<END
@@ -548,15 +559,43 @@ END;
         unset($allIncludes[$phpFile->getRealPath()]);
         $uses = $this->getUsesFromIncludes($allIncludes);
         $newHeader = [];
+        $seen = [];
+        $warnings = [];
         foreach ($uses as $include=>$info) {
             // must be on separate lines for cs-fixer to fix.
 //            array_push($newHeader, sprintf("\n// %s", $info));
-            array_push($newHeader, sprintf("%s;", $include));
+            $namex = explode("\\", $include);
+            $name = end($namex);
+
+//            if (str_contains($include, 'use function ')) {
+//                array_push($newHeader, sprintf("%s;", $include));
+//            } else {
+                if (empty($seen[$name])) {
+                    array_push($newHeader, sprintf("%s;", $include));
+                    $seen[$name] = $include;
+                } else {
+                    dd($info, $include, $seen, $newHeader, $name);
+                    $warnings[$include] = $seen[$name];
+                }
+//            }
+
+        }
+
+        if (count($warnings)) {
+            dd($warnings);
         }
 
 //        $newClassPhp = '<?php' . "\n\n" . $relativeFilename;
 
         $this->writeFile($newFilename,  $newClassPhp . join("\n", $newHeader) . "\n\n" . $phpClass->getOriginalPhp());
+
+        $output = exec("php -l $newFilename");
+        if (preg_match('/^Errors parsing/', $output)) {
+            $phpClass->setStatus($output);
+            $this->logger->error($output, [$newFilename, $output]);
+            dump( $newFilename, $output, $phpClass->getPhpFile()->getRealPath());
+        }
+
         return $newFilename;
 
 
@@ -660,9 +699,12 @@ END;
                 if ($originalIncludedFile->getPhpClasses()->count()) {
                     foreach ($originalIncludedFile->getPhpClasses() as $phpClass) {
                         if ($phpClass->getUse()) {
+                            if (!$phpClass->isClass()) {
+                                dd($phpClass);
+                            }
                             $uses["use " . $phpClass->getUse()] = $info;
                         } else {
-                            $uses["// No classes found in "] = $info;
+//                            $uses["// No classes found in "] = $info;
 
                         }
                         // add the functions, which are now inside a class
@@ -770,7 +812,10 @@ END;
 
                 $val = constant($ca_constant);
                 $includedFile = $val . '/' . $m[3] . '.php';
-                assert(array_key_exists($includedFile, $files));
+                if (!array_key_exists($includedFile, $files)) {
+                    continue; // skip Office, ImageMagick, etc.  files that are a bit too messy
+                }
+//                assert(array_key_exists($includedFile, $files), "Missing $includedFile for lookup");
                 /** @var PhpFile $includedPhpFile */
                 $includedPhpFile = $files[$includedFile];
                 $phpFile->addInclude($includedPhpFile->getRealPath(), $includedFile);

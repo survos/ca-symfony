@@ -68,6 +68,9 @@
                             <b>namespace {{ phpClass.namespace  }};</b>
                             class {{ phpClass.name }} {...}<br />
                             As Use: use {{ phpClass.use }};
+                            {% if phpClass.status %}
+                            <div class="text-danger">php -l {{ phpClass.realPath }}</div>
+                            {% endif %}
                             {#                        {% for functionName in phpClass.functionList %}#}
                             {#                            <small>{{ functionName }}()</small>#}
                             {#                        {% endfor %}#}
