@@ -23,7 +23,6 @@ $request = Request::createFromGlobals();
 //$response = $kernel->handle($request);
 $response = $kernel->handle($request);
 
-
 //include "providence/index.php";
 //$response->send();
 //$kernel->terminate($request, $response);

@@ -37,6 +37,7 @@ class FixNamespaceService
         $this->namespacedDir = $namespacedDir;
     }
 
+    /** @deprecated "now in AppController */
     public function fix($dir, array $options=[]): array
     {
         $options = (new OptionsResolver())
@@ -128,8 +129,8 @@ class FixNamespaceService
 
 
         // hack --
-        $classes = array_map(fn ($class) => "use $class;", array_keys($this->uses));
-        $this->usesString = join("\n", $classes);
+//        $classes = array_map(fn ($class) => "use $class;", array_keys($this->uses));
+//        $this->usesString = join("\n", $classes);
 
         foreach ($finder as $file)
         {
@@ -222,7 +223,7 @@ class FixNamespaceService
 
 //                $phpFile->setRawPhp(str_replace($functionsPhp, '', $php));
                 $phpFile
-                    ->setStatus(PhpFile::IS_CLASS) // we're forcing it into a class
+//                    ->setStatus(PhpFile::IS_CLASS) // we're forcing it into a class
                     ->setHeaderPhp($php); // the original PHP, minus the functions.  The class has to go below this,because sometimes globals are set., e.g. accessHelpers.php
 
                 // if there's any PHP besides the first one, it's a template.  if there's a $this, it's an include for a class (and should be manually included when the time comes).
@@ -264,27 +265,27 @@ class FixNamespaceService
                 foreach ($phpFile->getPhpClasses() as $phpClass)
                 {
                     $newFilename = $this->namespacedDir . '/' . ($relativeFilename = PhpFile::applyNamespaceHacks($phpClass->getPhpFile()->getRelativePath()) . sprintf('/%s.php', $phpClass->getName()));
+                    $phpClass->setRelativePath($relativeFilename);
                     $phpClass->setRealPath($newFilename);
 //                    dd('no classes!', $phpClass->getRealPath());
                     $ns = $this->getNamespaceFromPath($phpClass->getPhpFile()->getRelativePath());
                     if (count($phpClass->getFunctionList()))
                     {
-                        $ns .= "\\" . $className; // functions aren't in a class, but instead namespaced.
+//                        $ns .= "\\" . $className; // functions aren't in a class, but instead namespaced. -- NO!  Instead, included in composer.json
                     }
                     $phpClass->setNamespace($ns);
                 }
             }
         }
 
-
+// /home/tac/tacman/providence/app/lib/Search/SitePageMediaSearchResult.php
 
         // get a list of the files we're going to need
         $include = [];
         $includesForAllFiles = <<< END
-
-require_once(__CA_APP_DIR__.'/helpers/requestHelpers.php');	// provides caCheckVendorLibraries helper
+require_once(__CA_APP_DIR__.'/helpers/requestHelpers.php');
 require_once(__CA_APP_DIR__.'/helpers/preload.php');
-require_once(__CA_APP_DIR__.'/helpers/utililityHelpers.php');
+require_once(__CA_APP_DIR__.'/helpers/utilityHelpers.php');
 END;
 
         foreach (explode("\n", $includesForAllFiles . trim($php)) as $line)
@@ -296,11 +297,7 @@ END;
             }
         }
 
-
-        // all files include preload
-        $include[$fileToInclude] = trim($line);
-
-        $phpFile->setInitialIncludes($include);
+        $phpFile->setInitialIncludes($include); // strings, mapped to files by caller.
         $phpFile->setHeaderPhp($php); // php without the classes, still raw, but now we have the include list
         return $phpFile;
     }
@@ -373,29 +370,29 @@ END;
         }
     }
 
-    public function insertIncludes($includedFile, $line)
-    {
-        $includedPhpFile = $this->getFile($includedFile);
-        if ($includedPhpFile->getStatus() == PhpFile::IS_CLASS)
-        {
-            array_push($newLines, "// $line $includedFile");
-            dd($includedPhpFile->getStatus(), $includedPhpFile->getPhpClasses()->count());
-
-            foreach ($includedPhpFile->getPhpClasses() as $phpClass)
-            {
-                $use = $phpClass->getUse();
-                dd($uses, $use);
-//                if (!array_key_exists($uses)) {
-//                    array_push($newLines, sprintf("use %s;", $phpClass->getUse()));
-//                    $uses[$phpClass->getUse()] = $includedFile;
-//                }
-            }
-        }
-        else
-        {
-            array_push($newLines, "$line // ". $includedPhpFile->getStatus());
-        }
-    }
+//    public function insertIncludes($includedFile, $line)
+//    {
+//        $includedPhpFile = $this->getFile($includedFile);
+//        if ($includedPhpFile->getStatus() == PhpFile::IS_CLASS)
+//        {
+//            array_push($newLines, "// $line $includedFile");
+//            dd($includedPhpFile->getStatus(), $includedPhpFile->getPhpClasses()->count());
+//
+//            foreach ($includedPhpFile->getPhpClasses() as $phpClass)
+//            {
+//                $use = $phpClass->getUse();
+//                dd($uses, $use);
+////                if (!array_key_exists($uses)) {
+////                    array_push($newLines, sprintf("use %s;", $phpClass->getUse()));
+////                    $uses[$phpClass->getUse()] = $includedFile;
+////                }
+//            }
+//        }
+//        else
+//        {
+//            array_push($newLines, "$line // ". $includedPhpFile->getStatus());
+//        }
+//    }
 
     public function extractIncludedFilename($line): ?string
     {
@@ -489,9 +486,9 @@ END;
         }
 
         file_put_contents($filename, $contents);
-
-
-//        dd($filename, $contents);
+        if (str_contains('Password', $filename)) {
+            dd($filename, $contents);
+        }
     }
 
     public function loadIncludes(?PhpFile $originalPhpFile, array &$includesSoFar): array
@@ -558,68 +555,113 @@ END;
         return $path . '/' . $this->getClassname() . '.php';
     }
 
-    public function writeClass(PhpClass $phpClass): ?string
-    {
+    public function createClassPhp(PhpClass $phpClass, array $functionUses, array $commonUses, array $options): ?string {
+        $options = (new OptionsResolver())->setDefaults(['write' => false, 'process' => false, 'filter' => false])->resolve($options);
+
         $phpFile = $phpClass->getPhpFile();
-        $newFilename = $phpClass->getRealPath();
-        if (empty($newFilename))
-        {
-            dd($phpClass);
-        }
-        assert(!empty($newFilename), "Empty newfilename in " . $phpClass->getPhpFile()->getRealPath());
 
         $ns = $phpClass->getNamespace();
-        $this->logger->info("creating", [$newFilename]);
         $newClassPhp = <<<END
 <?php
-
 namespace $ns;
 
+
 END;
-//        dd($phpFile->getInitialIncludes(), $phpFile->getHeaderPhp());
-        // now we have to recurse through all the includes to get a master list of uses.
 
         $allIncludes = [];
-
         $this->loadIncludes($phpFile, $allIncludes);
         // hacking..., never include the namespace itself
-        unset($allIncludes[$phpFile->getRealPath()]);
         $uses = $this->getUsesFromIncludes($allIncludes);
-        $seen = [$phpClass->getName() => "// Class Name"];
+        unset($allIncludes[$phpFile->getRealPath()]);
+
+
+//        dd($phpFile->getInitialIncludes(), $phpFile->getHeaderPhp());
+        // now we have to recurse through all the includes to get a master list of uses.
+        $commonNs = ['Stash'];
+        $namespaces =  array_unique(array_merge($commonNs, $phpFile->getUses()));
+        foreach ($namespaces as $declaredUse) {
+            // if we already have this, we don't need to re-add it.
+
+            $x = explode("\\", $declaredUse);
+            $key = array_pop($x);
+//                $key = 'PluginConsumer';
+                if (array_key_exists($key, $uses)) {
+                    if ($uses[$key]['use'] <> $declaredUse) {
+                        $declaredUse = false;
+//                        dd($declaredUse, $uses[$key]);
+//                        continue; // skip if it already exists, we probably get it elsewhere, the use statements rely on auto-loading.
+                    }
+//                    dd($uses[$key]);
+                }
+//                dd($commonUses, $uses);
+
+            if ($declaredUse) {
+                if (!array_key_exists($declaredUse, $commonUses) && !array_key_exists($declaredUse, $uses)) {
+                    if ($declaredUse <> $phpClass->getName()) {
+                        $newClassPhp .= sprintf("use $declaredUse; # as requested. \n");
+                    }
+                }
+            }
+//            dd($newClassPhp, $phpFile->getRealPath(), $phpFile->getUses());
+        }
+
+        $newClassPhp .= join("\n", $functionUses) . "\n\n";
+
+
+
+        $newClassPhp .= join("\n",
+            array_filter(array_map(fn (string $u) => ( ($u <> $phpClass->getName()) && array_key_exists($u, $uses)) ? "use $u;" : false, array_values($commonUses)))) . "\n\n";
+//        dd($newClassPhp);
+//        sort($namespaces);
+//
+//        $newClassPhp .= join("\n", array_map(fn($u) => "use $u;", $namespaces)) . "\n\n";
+
+//        if (count($phpFile->getUses())) {
+//            dd($phpFile->getOriginalUses());
+//        }
+
+        $seen[$phpClass->getName()] = "// Class Name " . $phpClass->getRealPath();
         $newHeader = [];
         $warnings = [];
-        foreach ($uses as $include=>$info)
-        {
+        foreach ($uses as $className => $useInfo ) {
+            $use = $useInfo['use'];
+            $include = $useInfo['info'];
             // must be on separate lines for cs-fixer to fix.
 //            array_push($newHeader, sprintf("\n// %s", $info));
-            $namex = explode("\\", $include);
-            $name = end($namex);
+
+//            $namex = explode("\\", $include);
+//            $name = end($namex);
 
 //            if (str_contains($include, 'use function ')) {
 //                array_push($newHeader, sprintf("%s;", $include));
 //            } else {
-            if (empty($seen[$name]))
-            {
-                array_push($newHeader, sprintf("%s;", $include));
-                $seen[$name] = $include;
-            }
-            else
-            {
+            if (empty($seen[$className])) {
+                array_push($newHeader, sprintf("use %s; # %s", $use, $include));
+                $seen[$className] = $include;
+            } else {
 //                dd($info, $include, $seen, $newHeader, $name);
-                $warnings[$include] = $seen[$name];
+                $warnings[$include] = $seen[$className];
             }
 //            }
         }
 
-        if (count($warnings))
-        {
-            dump($warnings);
+        if (count($warnings)) {
+//            dump($warnings);
         }
 
 //        $newClassPhp = '<?php' . "\n\n" . $relativeFilename;
 
         sort($newHeader);
-        $this->writeFile($newFilename,  $newClassPhp . join("\n", $newHeader) . "\n\n" . $phpClass->getOriginalPhp());
+        $headerPhp = join("\n", $newHeader);
+        $phpClass->setHeader($headerPhp);
+
+        if ($options['write']) {
+            $newFilename = $phpClass->getRealPath();
+            assert(!empty($newFilename), "Empty newfilename in " . $phpClass->getPhpFile()->getRealPath());
+            $this->logger->info("creating $newFilename", [$phpClass->getPhpFile()->getRealPath()]);
+
+            $this->writeFile($newFilename, $newClassPhp . $phpClass->getHeader() . "\n\n" . $phpClass->getOriginalPhp());
+        }
 
 //        $output = exec("php -l $newFilename");
 //        if (preg_match('/^Errors parsing/', $output))
@@ -631,6 +673,9 @@ END;
 
         return $newFilename;
 
+    }
+
+    function oldx() {
 
 //        $newPhp = str_replace($m[1], "// see $newFilename for class $className\n", $newPhp);
 
@@ -750,7 +795,10 @@ END;
 //                                dd($phpClass);
                             }
                             if ($phpClass->getType() !== PhpClass::RAW_INCLUDE) {
-                                $uses["use " . $phpClass->getUse()] = $info;
+                                $uses[$phpClass->getName()] = [
+                                    'use' => $phpClass->getUse(),
+                                    'info' => $info
+                                ];
                             }
                             if ($phpClass->getPhpFile()->getFilenameWithoutExtension() === 'BaseVersionUpdater.php') {
 //                                dd($phpClass->getType(), PhpClass::NORMAL_CLASS);
@@ -763,7 +811,7 @@ END;
                         // add the functions, which are now inside a class
                         foreach ($phpClass->getFunctionList() as $functionName)
                         {
-                            $uses["use function " . $phpClass->getUse()."\\$functionName"] = $info;
+//                            $uses["use function " . $phpClass->getUse()."\\$functionName"] = $info;
                         }
 //                        dd($uses, $phpClass->getUse(), $phpClass->getType(), $originalIncludedFile->getStatus(), $phpClass);
                     }
@@ -952,6 +1000,7 @@ END;
                 $php = str_replace($m[0], "// $m[2]() removed\n", $php . "\n");
             }
             $phpClass
+
                 ->setOriginalPhp($functionPhp) // namespaced, but NOT in a class.  "class $className\n{\n\n" . $functionPhp . "\n}" )
                 ->setFunctionList($functionList);
         }

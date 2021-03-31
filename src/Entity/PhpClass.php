@@ -72,6 +72,11 @@ class PhpClass
      */
     private $status;
 
+    /**
+     * @ORM\Column(type="string", length=255)
+     */
+    private $relativePath;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -119,14 +124,9 @@ class PhpClass
         return str_replace('/', '\\', 'CA/' . $path);
     }
 
-    public function isClass(): bool
-    {
-        return $this->getStatus() === self::NORMAL_CLASS;
-    }
-
     public function getUse()
     {
-        return $this->guessNamespace() . '\\' . $this->getName();
+            return $this->guessNamespace() . '\\' . $this->getName();
 //        return $this->isClass() ? $this->guessNamespace() . '\\' . $this->getName() : '';
     }
 
@@ -183,6 +183,12 @@ class PhpClass
         return $this->getType() === self::RAW_INCLUDE;
     }
 
+    public function isClass(): bool
+    {
+        return $this->getType() === self::NORMAL_CLASS;
+    }
+
+
     public function getHeader(): ?string
     {
         return $this->header;
@@ -217,5 +223,22 @@ class PhpClass
         $this->status = $status;
 
         return $this;
+    }
+
+    public function getRelativePath(): ?string
+    {
+        return $this->relativePath;
+    }
+
+    public function setRelativePath(string $relativePath): self
+    {
+        $this->relativePath = $relativePath;
+
+        return $this;
+    }
+
+    public function __toString()
+    {
+        return $this->getRealPath();
     }
 }

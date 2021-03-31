@@ -63,22 +63,14 @@ class FixCommand extends Command
     
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $response = $this->appController->reflect($this->fixNamespaceService);
-        // the logger gives us what we need...
-        return self::SUCCESS;
-
         $io = new SymfonyStyle($input, $output);
-        $dir = $input->getArgument('dir');
-        $this->fixNamespaceService->fix($dir, ['add-namespaces'=>$input->getOption('add-namespaces')]);
-//        $output->writeln(
-//            "Class and filename match " . $absoluteFilePath,
-//            OutputInterface::VERBOSITY_VERBOSE
-//        if ($output->isVerbose()) {
-//            $this->logger->warning("No classes in ", [$absoluteFilePath]);
-//        }
-
+        $response = $this->appController->reflect($this->fixNamespaceService, null, [
+            'write' => true,
+            'process' => true,
+            'filter' => ''
+        ]);
+        // the logger gives us what we need...
         $io->success('Finished ' . __CLASS__);
-        
-        return Command::SUCCESS;
+        return self::SUCCESS;
     }
 }

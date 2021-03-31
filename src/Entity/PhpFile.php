@@ -92,6 +92,26 @@ class PhpFile
      */
     private $initialIncludes = [];
 
+    /**
+     * @ORM\ManyToMany(targetEntity=PhpFile::class)
+     */
+    private $requiredPhpFiles;
+
+    /**
+     * @ORM\Column(type="text", nullable=true)
+     */
+    private $errorText;
+
+    /**
+     * @ORM\Column(type="array", nullable=true)
+     */
+    private $uses = [];
+
+    /**
+     * @ORM\Column(type="array", nullable=true)
+     */
+    private $constants = [];
+
     public function __construct($realPath, array $dirsToRemove)
     {
         $cleanerDir = $realPath;
@@ -106,6 +126,7 @@ class PhpFile
             ->setRawPhp(trim(file_get_contents($realPath)))
         ;
         $this->phpClasses = new ArrayCollection();
+        $this->requiredPhpFiles = new ArrayCollection();
     }
 
     public static function applyNamespaceHacks($path)
@@ -139,6 +160,25 @@ class PhpFile
 
     public function setRawPhp(string $rawPhp): self
     {
+        // in theory, key elements should be in the first column
+        foreach (explode("\n", $rawPhp) as $line) {
+            $line = trim($line); // shouldn't be needed!
+            if (!$line) {
+                continue;
+            }
+            if ($line[0] == ' ') {
+                continue; // if there's a space, there's some code or something, so skip it.
+            }
+            // @todo: CA\\MediaUrl is \lib\MediaUrl, need to map existing CA
+            if (preg_match('/^use ([^\s]+);/', $line, $m)) {
+                // later, let's expand if this if it's one of ours.
+                // the old CA isn't right anymore.
+                array_push($this->uses, str_replace('CA\\', '', $m[1]));
+            }
+
+        }
+//        array_push($this->uses, 'Stash'); // quasi-global
+        $this->uses = array_unique($this->uses);
         // look for 'class' in the first column, if not, look for functions
         $this->rawPhp = $rawPhp;
         if (preg_match('/^(abstract |final |public )?(class |interface |trait )([A-Za-z_0-9]+)\s/im', $rawPhp, $m))
@@ -297,6 +337,16 @@ class PhpFile
         return $this;
     }
 
+    public function getHeaderLines()
+    {
+        return explode("\n", $this->getHeaderPhp());
+    }
+
+    public function getOriginalUses()
+    {
+        return array_filter(fn(string $line) => preg_match('/use /', $line),$this->getHeaderLines());
+    }
+
     public function getIncludes(): ?array
     {
         return $this->includes;
@@ -328,6 +378,76 @@ class PhpFile
     public function setInitialIncludes(array $initialIncludes): self
     {
         $this->initialIncludes = $initialIncludes;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection|self[]
+     */
+    public function getRequiredPhpFiles(): Collection
+    {
+        return $this->requiredPhpFiles;
+    }
+
+    public function addRequiredPhpFile(self $requiredPhpFile): self
+    {
+        if (!$this->requiredPhpFiles->contains($requiredPhpFile)) {
+            $this->requiredPhpFiles[] = $requiredPhpFile;
+        }
+
+        return $this;
+    }
+
+    public function removeRequiredPhpFile(self $requiredPhpFile): self
+    {
+        $this->requiredPhpFiles->removeElement($requiredPhpFile);
+
+        return $this;
+    }
+
+    public function getErrorText(): ?string
+    {
+        return $this->errorText;
+    }
+
+    public function setErrorText(?string $errorText): self
+    {
+        $this->errorText = $errorText;
+
+        return $this;
+    }
+
+    public function getClassCount()
+    {
+        return $this->getPhpClasses()->filter(fn(PhpClass $phpClass) => $phpClass->isClass())->count();
+    }
+
+    public function getFunctionFileCount()
+    {
+        return $this->getPhpClasses()->filter(fn(PhpClass $phpClass) => $phpClass->isRawInclude())->count();
+    }
+
+    public function getUses(): ?array
+    {
+        return $this->uses;
+    }
+
+    public function setUses(?array $uses): self
+    {
+        $this->uses = $uses;
+
+        return $this;
+    }
+
+    public function getConstants(): ?array
+    {
+        return $this->constants;
+    }
+
+    public function setConstants(?array $constants): self
+    {
+        $this->constants = $constants;
 
         return $this;
     }

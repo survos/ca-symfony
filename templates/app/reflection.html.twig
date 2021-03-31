@@ -2,17 +2,13 @@
 
 {% block body %}
     <div class="row">
-        <div class="col-md-6">
+        <div class="col-md-12">
             {{ block('files') }}
-        </div>
-        <div class="col-md-6">
-            {{ block('classes') }}
         </div>
     </div>
 {% endblock %}
 
 {% block classes %}
-{{ dump(classes) }}
 {% endblock %}
 
 {% block xclasses %}
@@ -31,7 +27,6 @@
             </ol>
         </li>
     </ul>
-        {{ loop.index == 2 ? dump(classInfo.includes) }}
     {% endfor %}
     
 {% endblock %}
@@ -41,41 +36,88 @@
         <thead>
         <tr>
             <th>Status</th>
-            <th>File/Classes</th>
-            <th>Initial Includes</th>
+            <th>#Cl</th>
+            <th>#Inc</th>
+            <th>PhpFile/Includes</th>
+            <th>Classes</th>
         </tr>
         </thead>
 
         <tbody>
-        {% for filename, phpFile in files %}
+        {% for filename, phpFile in files|slice(0, 50) %}
             <tr valign="top">
                 <td>
                     {{ phpFile.status }}
                 </td>
                 <td>
-                    {{ phpFile.relativeFilename }} <span class="badge badge-light">{{ phpFile.includes|length }}</span>
-                    <ul class="list">
-                        {% for includeFile, original in phpFile.initialIncludes %}
-                            <li class="list-item">{{ includeFile }}->{{ original }}</li>
-                        {% endfor %}
-                    </ul>
+                    {{ phpFile.classCount }}
+                </td>
+                <td>
+                    {{ phpFile.functionFileCount }}
+                </td>
+                <td>
+                    {{ phpFile.status }}<br />
+                    {% if phpFile.errorText %}
+                    <div class="text-danger">
+                        {{ phpFile.errorText }}
+                    </div>
+                    {% endif %}
+                    {{ phpFile.relativeFilename }} <span class="badge badge-light">{{ phpFile.requiredPhpFiles.count }}</span>
+                    {{ phpFile.requiredPhpFiles.count }}
 
-                    <ul class="list-unstyled">
-                        {% for phpClass in phpFile.phpClasses %}
-                            <a target="_blank" href="file://{{ phpClass.realPath }}">
-                                {{ phpClass.realPath }}
-                            </a>
-                            <b>namespace {{ phpClass.namespace  }};</b>
-                            class {{ phpClass.name }} {...}<br />
-                            As Use: use {{ phpClass.use }};
-                            {% if phpClass.status %}
-                            <div class="text-danger">php -l {{ phpClass.realPath }}</div>
-                            {% endif %}
-                            {#                        {% for functionName in phpClass.functionList %}#}
-                            {#                            <small>{{ functionName }}()</small>#}
-                            {#                        {% endfor %}#}
+                    {{ dump(phpFile.uses) }}
+                    <ul class="list">
+{#                        this first three (more?) are included everywhere#}
+                        {% for reqPhpFile in phpFile.requiredPhpFiles|slice(3) %}
+                            <li class="list-item" title="">
+{#                                {% set includedPhpFile = files[includeFile]|default({includes: []}) %}#}
+                                {{ reqPhpFile.requiredPhpFiles|length }}
+                                {{ reqPhpFile.relativeFilename }}
                         {% endfor %}
                     </ul>
+                </td>
+                <td>
+                    <table class="table table-striped">
+                        <thead>
+                        <tr>
+                            <th>#F</th>
+                            <th>Type</th>
+                            <th>Detail</th>
+                        </tr>
+
+                        </thead>
+                        <tbody>
+                        {% for phpClass in phpFile.phpClasses %}
+                            <tr>
+                                <td>
+                                    f({{ phpClass.functionList|length }})
+                                </td>
+                                <td>
+
+                                <a target="_blank" href="file://{{ phpClass.realPath }}">
+                                    namespace <b title="{{ phpClass.realPath }}">{{ phpClass.namespace  }}</b>;
+                                </a>
+                                </td>
+
+                                <td>
+                                    {% if phpClass.isClass %}
+                                    {{ phpClass.name }} {...}<br />
+                                    As Use: use {{ phpClass.use }};
+                                    {% else %}
+                                        Add {{ phpClass.relativePath }} to files key in composer.json
+                                        @todo: use function names w/o duplicates.
+                                        {% endif %}
+                                    {% if phpClass.status %}
+                                        <div class="text-danger">php -l {{ phpClass.realPath }}</div>
+                                    {% endif %}
+                                    {#                        {% for functionName in phpClass.functionList %}#}
+                                    {#                            <small>{{ functionName }}()</small>#}
+                                    {#                        {% endfor %}#}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </td>
             </tr>
         {% endfor %}
