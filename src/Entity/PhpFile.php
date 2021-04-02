@@ -194,8 +194,19 @@ class PhpFile
             }
 
         }
-//        array_push($this->uses, 'Stash'); // quasi-global
-        $this->uses = array_unique($this->uses);
+
+        // some hacks for migrating, should really be done at the very end, when writing classes.
+        $rawPhp = str_replace('$vs_dbclass = "Db_$vs_dbtype";', '$vs_dbclass = \CA\app\lib\Db\Db_mysqli::class;', $rawPhp);
+
+        $pattern = '/^( *?@(require|include))/ism';
+        if (preg_match($pattern, $rawPhp, $m)) {
+            $rawPhp = preg_replace($pattern, "# removed require/include. ", $rawPhp);
+            // we should probably make sure this is in the required files list, @todo
+            // don't include it though.
+        }
+
+        array_push($this->uses, 'Stash'); // quasi-global, used by the cache.
+//        $this->uses = array_unique($this->uses);
         // look for 'class' in the first column, if not, look for functions
         $this->rawPhp = $rawPhp;
         if (preg_match('/^(abstract |final |public )?(class |interface |trait )([A-Za-z_0-9]+)\s/im', $rawPhp, $m))

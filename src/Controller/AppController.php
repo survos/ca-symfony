@@ -9,6 +9,9 @@ use App\Repository\ProfileRepository;
 use App\Services\FixNamespaceService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Roave\BetterReflection\BetterReflection;
+use Roave\BetterReflection\Reflector\ClassReflector;
+use Roave\BetterReflection\SourceLocator\Type\SingleFileSourceLocator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Finder\Finder;
@@ -113,6 +116,7 @@ class AppController extends AbstractController
                 return $file->isFile() && !preg_match('/providence\/(app\/tmp|vendor|tests)/', $file->getRealPath()) && !preg_match('/(xxxphpqrcode)/', $file->getRealPath()) && preg_match('//', $file->getRealPath()) && preg_match('/\.(php)$/i', $file->getFilename());
             });
 
+        $this->logger->info("Processing files in ", [$dirToRemove]);
         // if this is a link, resolve it.
         $dirsToRemove = [$dirToRemove];
         // remove from realPath for relative file names.
@@ -130,10 +134,28 @@ class AppController extends AbstractController
         foreach ($finder as $file)
         {
             $absolutePath = $file->getRealPath();
+
+            // perhaps...
+//            $astLocator = (new BetterReflection())->astLocator();
+//            $reflector = new ClassReflector(new SingleFileSourceLocator($absolutePath, $astLocator));
+//            $classes = $reflector->getAllClasses();
+//            if (count($classes) > 1) {
+//                dd($classes, $reflector);
+//            }
+
+
             $phpFile = (new PhpFile($absolutePath, $dirsToRemove))
                 ->setFilename($file->getFilename());
             $fixNamespaceService->createClasses($phpFile);
             $files[$file->getRealPath()] = $phpFile;
+            // for class lookup.
+            foreach ($phpFile->getPhpClasses() as $phpClass) {
+                $className = $phpClass->getName();
+                if (empty($classLookup[$className])) {
+                    $classLookup[$className] = [];
+                }
+                array_push($classLookup[$className], $phpClass);
+            }
         }
         //  /home/tac/tacman/providence/app/helpers/utilityHelpers.php
         //  /home/tac/tacman/providence/app/helpers/utililityHelpers.php
@@ -163,6 +185,19 @@ class AppController extends AbstractController
         // extract the files that are simply functions and add them to composer, and pass the HUGE function list into the generator.
         $functionFiles = $functionUses = $commonUses =  [];
         foreach ($files as $file) {
+            // expand "use" if just a single word.  Not great, but worth a try.
+            $uses = $phpFile->getUses();
+            foreach ($file->getUses() as $idx => $use) {
+                if (array_key_exists($use, $classLookup)) {
+                    // just the first one for now, hack of course,
+                    $cl = $classLookup[$use][0];
+//                    $uses[$idx] = $cl->getUse();
+//                    $seen[$cl->getName()] = $cl->getRealPath();
+                }
+            }
+
+            $file->setUses($uses);
+
             foreach ($file->getPhpClasses() as $phpClass) {
 
                 if ($phpClass->isRawInclude()) {
@@ -180,6 +215,8 @@ class AppController extends AbstractController
 //                        dd($classDir, $paths, $phpClass->getRealPath());
                     }
                     assert(empty($seen[$phpClass->getName()]), "Duplicate class name: " . $phpClass->getName() . ' ' . $phpClass);
+
+//                    if (!empty($seen[$phpClass->getName()]))
                     if (in_array($classDir, $paths)) {
                         $commonUses[$phpClass->getName()] = $phpClass->getUse();
                         $seen[$phpClass->getName()] = $phpClass->getRealPath();
@@ -188,6 +225,7 @@ class AppController extends AbstractController
                 }
             }
         }
+
         $functionUses = array_unique($functionUses);
         sort($functionUses);
         ksort($commonUses);
@@ -256,18 +294,8 @@ class AppController extends AbstractController
         ]);
     }
 
-    private function oldWay()
+    private function refactorController($controllerClassName)
     {
-        assert(false);
-
-
-
-        // now go through each file and decide what to do with it.
-//        dd($files['/home/tac/survos/ca/vendor/collectiveaccess/providence/app/helpers/utilityHelpers.php']);
-
-//        $includedFiles = array_filter(get_included_files(), fn(string $filename) => preg_match('{/vendor/collectiveaccess/}', $filename) && !preg_match('{/providence/vendor|app/tmp}', str_replace($dir, '', $filename)));
-
-        $fileToClass = [];
         $classesToWrite = array_filter(get_declared_classes(), fn($className) => preg_match('/Db/', $className));
         foreach ($classesToWrite as $class)
         {

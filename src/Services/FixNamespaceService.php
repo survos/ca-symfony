@@ -10,6 +10,10 @@ use App\Command\ClassStructure;
 use App\Entity\PhpClass;
 use App\Entity\PhpFile;
 use Psr\Log\LoggerInterface;
+use Roave\BetterReflection\BetterReflection;
+use Roave\BetterReflection\Reflection\ReflectionParameter;
+use Roave\BetterReflection\Reflector\ClassReflector;
+use Roave\BetterReflection\SourceLocator\Type\StringSourceLocator;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
@@ -207,6 +211,7 @@ class FixNamespaceService
                         ->setExtends($extends)
                         ->setImplements($implements);
 
+                    // hide the class source for now, though we need the comment.  This is so we can clean up the functions.
                     $php = str_replace($classPhp, '', $php);
                 }
                 // get everything to the first function and squeeze in a class
@@ -616,8 +621,9 @@ END;
             $x = explode("\\", $declaredUse);
             $key = array_pop($x);
             if ($stopMatch) {
-                dump($key, $uses[$key]);
+//                dump($key, $uses[$key]);
             }
+
 //                $key = 'PluginConsumer';
                 if (array_key_exists($key, $uses)) {
                     if ($uses[$key]['use'] <> $declaredUse) {
@@ -628,6 +634,7 @@ END;
 //                    dd($uses[$key]);
                 }
 //                dd($commonUses, $uses);
+
 
             if ($declaredUse) {
                 // if it's something that was added in the autoloader to scan certain directories, use it.
@@ -657,18 +664,30 @@ END;
             }
         }
 
-        $newClassPhp .= join("\n", $thisFunctionUses) . "\n\n";
         if ($phpClass->getName() == 'utilityHelpers') {
 //            dd($newClassPhp, $thisFunctionUses);
         }
 
         // go through all the common uses, but dont add if it's already in the uses.
-        $newClassPhp .= join("\n",
+        $classUses =
             array_filter(array_map(fn (string $u) =>
-            ( ($u <> $phpClass->getName()) && array_key_exists($u, $uses))
+            ( ($u <> $phpClass->getName()) ) //  && array_key_exists($u, $uses))
                 ? "use $u;"
-                : false,
-                array_values($commonUses)))) . "\n\n";
+                : null,
+                array_values($commonUses)));
+        foreach ($uses as $className => $info) {
+            array_push($classUses, sprintf("use %s;", $info['use']));
+        }
+
+        $classUses = array_unique($classUses);
+//        dd($classUses);
+        sort($classUses);
+
+        $newClassPhp .= join("\n", $classUses) . "\n";
+        $newClassPhp .= join("\n", $thisFunctionUses) . "\n";
+
+//        dd($commonUses['BaseSearchBuilderController'], $newClassPhp);
+
 //        dd($newClassPhp);
 //        sort($namespaces);
 //
@@ -709,11 +728,11 @@ END;
 
 //        $newClassPhp = '<?php' . "\n\n" . $relativeFilename;
 
-        sort($newHeader);
-        $headerPhp = join("\n", $newHeader);
-        $phpClass->setHeader($headerPhp);
+//        sort($newHeader);
+//        $headerPhp = join("\n", $newHeader);
+//        $phpClass->setHeader($headerPhp);
+//        $phpClass->setHeader($newClassPhp); // the uses
 
-        if ($options['write']) {
             // checking
             if ( ($filter = $options['filter']) && !preg_match("!$filter!i", $phpClass->getPhpFile()->getRealPath())) {
                 return null;
@@ -722,12 +741,28 @@ END;
             assert(!empty($newFilename), "Empty newfilename in " . $phpClass->getPhpFile()->getRealPath());
             $this->logger->info("creating $newFilename", [$phpClass->getPhpFile()->getRealPath()]);
 
-            $this->writeFile($newFilename, $contents = $newClassPhp . $phpClass->getHeader() . "\n\n" . $phpClass->getOriginalPhp());
-//            dd($newFilename, $contents);
+
+//        $astLocator = (new BetterReflection())->astLocator();
+//        $reflector = new ClassReflector(new StringSourceLocator($code, $astLocator));
+//        $reflectionClass = $reflector->reflect($phpClass->getUse());
+
+        $php = $phpClass->getOriginalPhp();
+        if (preg_match('/controller/i', $phpClass->getUse())) {
+            $php = str_replace('__construct', 'ca_construct', $php);
+            // fix the methods, including the constructors.
+        }
+        $code = $newClassPhp
+            . $phpClass->getHeader()
+            . "\n" . $php;
+        if ($options['write']) {
+            $this->writeFile($newFilename, $code);
+//            dd($newFilename, $code);
             return $newFilename;
         } else {
             return null;
         }
+
+
 
 //        $output = exec("php -l $newFilename");
 //        if (preg_match('/^Errors parsing/', $output))
@@ -740,7 +775,7 @@ END;
 
     }
 
-    function oldx() {
+    function oldWay() {
 
 //        $newPhp = str_replace($m[1], "// see $newFilename for class $className\n", $newPhp);
 

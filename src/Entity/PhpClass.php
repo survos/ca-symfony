@@ -261,7 +261,7 @@ class PhpClass
     {
         $this->extends = $extends;
         if ($extends) {
-            $this->getPhpFile()->addUse($extends);
+//            $this->getPhpFile()->addUse($extends);
         }
         return $this;
     }
@@ -275,7 +275,7 @@ class PhpClass
     {
         $this->implements = $implements;
         if ($implements) {
-            array_walk($implements, fn($useStr) => $this->getPhpFile()->addUse($useStr));
+//            array_walk($implements, fn($useStr) => $this->getPhpFile()->addUse($useStr));
         }
 
         return $this;

@@ -171,6 +171,9 @@
     "rector/rector": {
         "version": "0.9.18"
     },
+    "roave/better-reflection": {
+        "version": "4.12.2"
+    },
     "roave/signature": {
         "version": "1.1.0"
     },
