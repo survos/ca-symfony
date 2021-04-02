@@ -77,6 +77,16 @@ class PhpClass
      */
     private $relativePath;
 
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $extends;
+
+    /**
+     * @ORM\Column(type="array", nullable=true)
+     */
+    private $implements = [];
+
     public function getId(): ?int
     {
         return $this->id;
@@ -240,5 +250,34 @@ class PhpClass
     public function __toString()
     {
         return $this->getRealPath();
+    }
+
+    public function getExtends(): ?string
+    {
+        return $this->extends;
+    }
+
+    public function setExtends(?string $extends): self
+    {
+        $this->extends = $extends;
+        if ($extends) {
+            $this->getPhpFile()->addUse($extends);
+        }
+        return $this;
+    }
+
+    public function getImplements(): ?array
+    {
+        return $this->implements;
+    }
+
+    public function setImplements(?array $implements): self
+    {
+        $this->implements = $implements;
+        if ($implements) {
+            array_walk($implements, fn($useStr) => $this->getPhpFile()->addUse($useStr));
+        }
+
+        return $this;
     }
 }

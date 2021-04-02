@@ -168,10 +168,31 @@ class FixNamespaceService
             // we could simply include this
 
             // check to make sure that the filename matches the class name.  If not, create new files.
-            if (preg_match_all('/\n((final |abstract )?(class |interface |trait )([^ ]+)[^\n]*\n{(.*?)\n})/sm', $php, $mm, PREG_SET_ORDER))
+            if (preg_match_all('/\n((final |abstract )?(class |interface |trait )([^ ]+)([^\n]*)\n{(.*?)\n})/sm', $php, $mm, PREG_SET_ORDER))
             {
+                // @todo: if multiple classes, need to have multiple extends and implements? Or better, put those at the class level.
                 foreach ($mm as $idx => $m)
                 {
+                    $extra = $m[5];
+
+                    // need to treat extends and implements as if there were an explicit 'use' statement,
+                    if (preg_match('|extends ([^;\s]+)|', $extra, $mmm)) {
+                        $extends = $mmm[1];
+                        if (in_array($extends, ['Exemption'])) {
+                            $extends = '\\' . $extends;
+                        }
+                        $extra = str_replace($m[0], '', $extra);
+//                        dd($mmm, $extends, $extra, $phpFile->getUses(), $phpFile->getOriginalUses());
+                    } else {
+                        $extends = null;
+                    }
+                    if (preg_match('|implements ([^;\s]+)|', $extra, $mmm)) {
+                        $implements = array_map('trim', explode(',', $mmm[1]));
+//                        dd($mmm, $implements, $extra, $phpFile->getImplements());
+                    } else {
+                        $implements = null;
+                    }
+//                    dd($extra, $m);
                     $type = $m[3];
                     $className = trim($m[4]);
                     $classPhp = $m[0];
@@ -180,6 +201,12 @@ class FixNamespaceService
                         ->setType($type)
                         ->setOriginalPhp(trim($classPhp));
                     $phpFile->addPhpClass($phpClass);
+                    // requires that phpfile be set
+
+                    $phpClass
+                        ->setExtends($extends)
+                        ->setImplements($implements);
+
                     $php = str_replace($classPhp, '', $php);
                 }
                 // get everything to the first function and squeeze in a class
@@ -237,8 +264,6 @@ class FixNamespaceService
                     dd($phpClass);
                 }
             }
-
-
 
             if ($phpFile->getPhpClasses()->count() === 0)
             {
@@ -545,18 +570,19 @@ END;
 //
 //    }
 
-    public function getFilenameToWrite(): ?string
-    {
-        $file = (new \SplFileInfo($this->getFilename()));
-        dump($file, $file->getPath());
-        $path = str_replace('/home/tac/survos/ca/vendor/collectiveaccess/providence', '', $file->getPath());
-        $path = str_replace('/home/tac/tacman/providence', '', $path);
-        dd($path);
-        return $path . '/' . $this->getClassname() . '.php';
-    }
+//    public function getFilenameToWrite(): ?string
+//    {
+//        $file = (new \SplFileInfo($this->getFilename()));
+//        dump($file, $file->getPath());
+//        $path = str_replace('/home/tac/survos/ca/vendor/collectiveaccess/providence', '', $file->getPath());
+//        $path = str_replace('/home/tac/tacman/providence', '', $path);
+//        dd($path);
+//        return $path . '/' . $this->getClassname() . '.php';
+//    }
 
     public function createClassPhp(PhpClass $phpClass, array $functionUses, array $commonUses, array $options): ?string {
         $options = (new OptionsResolver())->setDefaults(['write' => false, 'process' => false, 'filter' => false])->resolve($options);
+        $filter = $options['filter'];
 
         $phpFile = $phpClass->getPhpFile();
 
@@ -572,18 +598,26 @@ END;
         $this->loadIncludes($phpFile, $allIncludes);
         // hacking..., never include the namespace itself
         $uses = $this->getUsesFromIncludes($allIncludes);
+        ksort($uses);
+
         unset($allIncludes[$phpFile->getRealPath()]);
 
 
 //        dd($phpFile->getInitialIncludes(), $phpFile->getHeaderPhp());
         // now we have to recurse through all the includes to get a master list of uses.
-        $commonNs = ['Stash'];
+//        $commonNs = ['Stash']; // ??
+        $commonNs = [];
         $namespaces =  array_unique(array_merge($commonNs, $phpFile->getUses()));
+        $stopMatch  = $filter && preg_match("|$filter|i", $phpFile->getRealPath());
+
         foreach ($namespaces as $declaredUse) {
             // if we already have this, we don't need to re-add it.
 
             $x = explode("\\", $declaredUse);
             $key = array_pop($x);
+            if ($stopMatch) {
+                dump($key, $uses[$key]);
+            }
 //                $key = 'PluginConsumer';
                 if (array_key_exists($key, $uses)) {
                     if ($uses[$key]['use'] <> $declaredUse) {
@@ -596,21 +630,45 @@ END;
 //                dd($commonUses, $uses);
 
             if ($declaredUse) {
+                // if it's something that was added in the autoloader to scan certain directories, use it.
+                if (array_key_exists($declaredUse, $commonUses)) {
+                    $newClassPhp .= sprintf("use %s;\n", $commonUses[$declaredUse]);
+//                    dd($newClassPhp);
+
+                }
                 if (!array_key_exists($declaredUse, $commonUses) && !array_key_exists($declaredUse, $uses)) {
                     if ($declaredUse <> $phpClass->getName()) {
-                        $newClassPhp .= sprintf("use $declaredUse; # as requested. \n");
+                        $newClassPhp .= sprintf("use $declaredUse;\n");
                     }
                 }
             }
 //            dd($newClassPhp, $phpFile->getRealPath(), $phpFile->getUses());
         }
+//        dd($newClassPhp);
 
-        $newClassPhp .= join("\n", $functionUses) . "\n\n";
+        $thisFunctionUses = $functionUses;
+        foreach ($phpClass->getFunctionList() as $fnName) {
+            $useFnValue = sprintf("use function %s\%s;", $phpClass->getNamespace(), $fnName);
+            if ($key = array_search($useFnValue, $thisFunctionUses)) {
+                unset($thisFunctionUses[$key]);
+            }
+            if ($fnName == 'caSetupPhpHasChanged') {
+//                dd($thisFunctionUses, $key, $thisFunctionUses[$useFnKey]);
+            }
+        }
 
+        $newClassPhp .= join("\n", $thisFunctionUses) . "\n\n";
+        if ($phpClass->getName() == 'utilityHelpers') {
+//            dd($newClassPhp, $thisFunctionUses);
+        }
 
-
+        // go through all the common uses, but dont add if it's already in the uses.
         $newClassPhp .= join("\n",
-            array_filter(array_map(fn (string $u) => ( ($u <> $phpClass->getName()) && array_key_exists($u, $uses)) ? "use $u;" : false, array_values($commonUses)))) . "\n\n";
+            array_filter(array_map(fn (string $u) =>
+            ( ($u <> $phpClass->getName()) && array_key_exists($u, $uses))
+                ? "use $u;"
+                : false,
+                array_values($commonUses)))) . "\n\n";
 //        dd($newClassPhp);
 //        sort($namespaces);
 //
@@ -636,7 +694,7 @@ END;
 //                array_push($newHeader, sprintf("%s;", $include));
 //            } else {
             if (empty($seen[$className])) {
-                array_push($newHeader, sprintf("use %s; # %s", $use, $include));
+                array_push($newHeader, sprintf("use %s;", $use));
                 $seen[$className] = $include;
             } else {
 //                dd($info, $include, $seen, $newHeader, $name);
@@ -656,11 +714,19 @@ END;
         $phpClass->setHeader($headerPhp);
 
         if ($options['write']) {
+            // checking
+            if ( ($filter = $options['filter']) && !preg_match("!$filter!i", $phpClass->getPhpFile()->getRealPath())) {
+                return null;
+            }
             $newFilename = $phpClass->getRealPath();
             assert(!empty($newFilename), "Empty newfilename in " . $phpClass->getPhpFile()->getRealPath());
             $this->logger->info("creating $newFilename", [$phpClass->getPhpFile()->getRealPath()]);
 
-            $this->writeFile($newFilename, $newClassPhp . $phpClass->getHeader() . "\n\n" . $phpClass->getOriginalPhp());
+            $this->writeFile($newFilename, $contents = $newClassPhp . $phpClass->getHeader() . "\n\n" . $phpClass->getOriginalPhp());
+//            dd($newFilename, $contents);
+            return $newFilename;
+        } else {
+            return null;
         }
 
 //        $output = exec("php -l $newFilename");
@@ -671,7 +737,6 @@ END;
 //            dump($newFilename, $output, $phpClass->getPhpFile()->getRealPath());
 //        }
 
-        return $newFilename;
 
     }
 

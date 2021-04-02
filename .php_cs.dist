@@ -57,6 +57,8 @@ $config = new PhpCsFixer\Config();return Config::create()
             'position_after_control_structures' => 'next',
             'position_after_anonymous_constructs' => 'same',
         ],
+        'no_superfluous_phpdoc_tags' => true,
+        'no_extra_blank_lines' => ['extra'],
         'single_blank_line_at_eof' => true,
     ])
     ->setFinder(

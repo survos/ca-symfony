@@ -56,16 +56,22 @@
                     {{ phpFile.functionFileCount }}
                 </td>
                 <td>
-                    {{ phpFile.status }}<br />
                     {% if phpFile.errorText %}
                     <div class="text-danger">
                         {{ phpFile.errorText }}
                     </div>
                     {% endif %}
                     {{ phpFile.relativeFilename }} <span class="badge badge-light">{{ phpFile.requiredPhpFiles.count }}</span>
-                    {{ phpFile.requiredPhpFiles.count }}
+                    #Uses: {{ phpFile.uses|length }}
+                    <ul class="list">
+                        {#                        this first three (more?) are included everywhere#}
+                        {% for use in phpFile.uses|slice(0,3) %}
+                        <li class="list-item" title="">
+                            {{ use }}
+                            {% endfor %}
+                    </ul>
 
-                    {{ dump(phpFile.uses) }}
+                    #reqPhpFiles: {{ phpFile.requiredPhpFiles.count }}
                     <ul class="list">
 {#                        this first three (more?) are included everywhere#}
                         {% for reqPhpFile in phpFile.requiredPhpFiles|slice(3) %}
@@ -97,11 +103,16 @@
                                 <a target="_blank" href="file://{{ phpClass.realPath }}">
                                     namespace <b title="{{ phpClass.realPath }}">{{ phpClass.namespace  }}</b>;
                                 </a>
+                                    {% if phpClass.isClass %}
+                                        <br />
+                                    cl {{ phpClass.name }}
+                                    {{ phpClass.extends ? "ext " ~ phpClass.extends }}
+                                    {{ phpClass.implements|length ? "imp " ~ phpClass.implements|join(',') }}
+                                    {% endif %}
                                 </td>
 
                                 <td>
                                     {% if phpClass.isClass %}
-                                    {{ phpClass.name }} {...}<br />
                                     As Use: use {{ phpClass.use }};
                                     {% else %}
                                         Add {{ phpClass.relativePath }} to files key in composer.json

@@ -112,6 +112,16 @@ class PhpFile
      */
     private $constants = [];
 
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $extends;
+
+    /**
+     * @ORM\Column(type="array", nullable=true)
+     */
+    private $implements = [];
+
     public function __construct($realPath, array $dirsToRemove)
     {
         $cleanerDir = $realPath;
@@ -158,6 +168,13 @@ class PhpFile
         return $this->rawPhp;
     }
 
+    public function addUse(string $useStr)
+    {
+        if (!in_array($useStr, $this->uses)) {
+            array_push($this->uses, $useStr);
+        }
+    }
+
     public function setRawPhp(string $rawPhp): self
     {
         // in theory, key elements should be in the first column
@@ -173,7 +190,7 @@ class PhpFile
             if (preg_match('/^use ([^\s]+);/', $line, $m)) {
                 // later, let's expand if this if it's one of ours.
                 // the old CA isn't right anymore.
-                array_push($this->uses, str_replace('CA\\', '', $m[1]));
+                $this->addUse(str_replace('CA\\', '', $m[1]));
             }
 
         }
@@ -342,10 +359,6 @@ class PhpFile
         return explode("\n", $this->getHeaderPhp());
     }
 
-    public function getOriginalUses()
-    {
-        return array_filter(fn(string $line) => preg_match('/use /', $line),$this->getHeaderLines());
-    }
 
     public function getIncludes(): ?array
     {
@@ -448,6 +461,30 @@ class PhpFile
     public function setConstants(?array $constants): self
     {
         $this->constants = $constants;
+
+        return $this;
+    }
+
+    public function getExtends(): ?string
+    {
+        return $this->extends;
+    }
+
+    public function setExtends(?string $extends): self
+    {
+        $this->extends = $extends;
+
+        return $this;
+    }
+
+    public function getImplements(): ?array
+    {
+        return $this->implements;
+    }
+
+    public function setImplements(?array $implements): self
+    {
+        $this->implements = $implements;
 
         return $this;
     }

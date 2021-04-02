@@ -190,6 +190,7 @@ class AppController extends AbstractController
         }
         $functionUses = array_unique($functionUses);
         sort($functionUses);
+        ksort($commonUses);
 
 //        dd($functionUses);
 

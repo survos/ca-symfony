@@ -25,7 +25,7 @@ chmod +rw vendor/collectiveaccess/providence/media/collectiveaccess
 
 cd vendor/collectiveaccess/providence
 git checkout .
-rm -Rf app/tmp
+#rm -Rf app/tmp
 #echo "left-justify class names";
 #find app themes support -name "*.php" -exec php -r '$fn = $argv[1]; echo "."; file_put_contents($fn,  file_get_contents($fn)));' {} \;
 
