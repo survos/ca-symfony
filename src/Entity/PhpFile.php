@@ -129,6 +129,7 @@ class PhpFile
         {
             $cleanerDir = str_replace($dirToRemove . '/', '', $cleanerDir);
         }
+        $this->setFilename(pathinfo($realPath, PATHINFO_FILENAME));
         $this
             ->setRealPath($realPath)
             ->setRelativeFilename($cleanerDir)
@@ -197,6 +198,11 @@ class PhpFile
 
         // some hacks for migrating, should really be done at the very end, when writing classes.
         $rawPhp = str_replace('$vs_dbclass = "Db_$vs_dbtype";', '$vs_dbclass = \CA\app\lib\Db\Db_mysqli::class;', $rawPhp);
+        $rawPhp = str_replace('new ReflectionClass("ConfigurationCheck");', 'new ReflectionClass(self::class);', $rawPhp);
+        if (str_contains($rawPhp, '(Exception')) {
+            $rawPhp = str_replace('(Exception', '(\Exception', $rawPhp);
+//            dd($rawPhp);
+        }
 
         $pattern = '/^( *?@(require|include))/ism';
         if (preg_match($pattern, $rawPhp, $m)) {
@@ -274,6 +280,7 @@ class PhpFile
 
     public function setStatus(string $status): self
     {
+//        assert($status <> self::IS_VIEW, $this->getFilename());
         $this->status = $status;
 
         return $this;

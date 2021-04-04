@@ -3,9 +3,8 @@
 namespace App\Controller;
 
 use App\Command\ClassStructure;
+use App\Entity\PhpClass;
 use App\Entity\PhpFile;
-use App\Repository\CaObjectsRepository;
-use App\Repository\ProfileRepository;
 use App\Services\FixNamespaceService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -252,9 +251,9 @@ class AppController extends AbstractController
 //                    continue;
                 }
                 switch ($phpFile->getStatus()) {
+                    case PhpFile::IS_INC:
                     case PhpFile::IS_INTERFACE:
                     case PhpFile::IS_CLASS:
-                    case PhpFile::IS_INC:
 //                    $allIncludes = []; // $phpFile->getInitialIncludes();
 //                    $fixNamespaceService->loadIncludes($phpFile, $allIncludes);
 //                    $phpFile->setIncludes($allIncludes);
@@ -268,16 +267,47 @@ class AppController extends AbstractController
                                 }
                             }
                         }
+                        // if no classes or functions, it's just a bunch of "defines()", so should be copied, like version.php
+                        if ($phpFile->getPhpClasses()->count() == 0) {
+                            $newFilename = $this->namespacedDir . '/' . $phpFile->getRelativeFilename();
+                            $fixNamespaceService->writeFile($newFilename, $phpFile->getRawPhp());
+                        }
                         // extract the classes
                         break;
-                    case PhpFile::IS_INC:
-//                    dd($phpFile);
+                    case PhpFile::IS_VIEW:
+                        // direct copy, after cleaning up the php
+                        $newFilename = $this->namespacedDir . '/' . $phpFile->getRelativeFilename();
+                        $php = $phpFile->getRawPhp();
+//                        // insert all the function uses, even that's not enough
+//                    $phpClass = (new PhpClass())
+//                        ;
+//                    $phpFile->addPhpClass($phpClass);
+//                    $options['write'] = true;
+//                    //
+//                        $finalFile = $fixNamespaceService->createClassPhp($phpClass, $functionUses, $commonUses, $options);
+//                        dd($finalFile, $phpClass);
+
+                    if (str_contains($php, '<?php')) {
+                        // insert the includes before the first closing php tag.
+                        $php = preg_replace('/^<\?php/',  "<?php\n\n" .join("\n", $functionUses) . "\n", $php, 1);
+//                        dd($php);
+                    }
+
+                        $fixNamespaceService->writeFile($newFilename, $php);
+
+
+//                        dd($phpFile);
 //                        $fixNamespaceService->createClassPhp($phpClass, $functionUses, $options);
 
                         // someday namespace this
                         // count the functions so we can use them when this file is included
                         break;
+//                    case PhpFile::IS_INC: // because these can have requires, they need to be handled like classes.
                     case PhpFile::IS_CLI:
+                        $newFilename = $this->namespacedDir . '/' . $phpFile->getRelativeFilename();
+                        $fixNamespaceService->writeFile($newFilename, $phpFile->getRawPhp());
+//                        dd($phpFile, $newFilename);
+                        break;
                         // move to bin/?
                         break;
                 }

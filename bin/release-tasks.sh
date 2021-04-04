@@ -59,6 +59,7 @@ find /home/tac/survos/ca/ca-fix/ca -type f -name '*.php' -print0 | xargs -0 -L1 
 echo "Fixing the final files\n";
 ~/tools/php-cs-fixer/vendor/bin/php-cs-fixer fix /home/tac/survos/ca/ca-fix/ca -vvv
 
+cp vendor/collectiveaccess/providence/app/lib/Parsers/TimeExpressionParser /home/tac/survos/ca/ca-fix/ca/app/lib/Parsers/. -r
 #exit 1;
 #find app/lib/Export/Base*.php -type f -exec sed  -e ':a;N;$!ba;s/\n *((final|abstract)? +class)/\n$1/g' {} \;
 #find vendor/collectiveaccess/providence/app/lib/Export/Base*.php -type f -exec sed  -e ':a;N;$!ba;s/\n *((final|abstract)? +class)/\n$1/g' {} \;

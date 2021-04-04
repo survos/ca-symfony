@@ -161,7 +161,10 @@ class FixNamespaceService
             // if there's still a <?php tag in here, then it's a template, never create a namespace or class
             if (preg_match('/<\?php.*?\?>/ms', $php, $m))
             {
-                $phpFile->setStatus(PhpFile::IS_VIEW);
+                // could also be a script
+                if ($phpFile->getStatus() === PhpFile::IS_CLASS) {
+                    $phpFile->setStatus(PhpFile::IS_VIEW);
+                }
                 return;
             }
 
@@ -610,8 +613,8 @@ END;
 
 //        dd($phpFile->getInitialIncludes(), $phpFile->getHeaderPhp());
         // now we have to recurse through all the includes to get a master list of uses.
-//        $commonNs = ['Stash']; // ??
-        $commonNs = [];
+        $commonNs = ['Stash', 'ReflectionClass', 'Exemption', 'HTMLPurifier']; // ??
+//        $commonNs = [];
         $namespaces =  array_unique(array_merge($commonNs, $phpFile->getUses()));
         $stopMatch  = $filter && preg_match("|$filter|i", $phpFile->getRealPath());
 
@@ -664,19 +667,24 @@ END;
             }
         }
 
-        if ($phpClass->getName() == 'utilityHelpers') {
-//            dd($newClassPhp, $thisFunctionUses);
-        }
 
         // go through all the common uses, but dont add if it's already in the uses.
+
         $classUses =
             array_filter(array_map(fn (string $u) =>
-            ( ($u <> $phpClass->getName()) ) //  && array_key_exists($u, $uses))
+            ( ($u <> $phpClass->getUse()) ) //  && array_key_exists($u, $uses))
                 ? "use $u;"
                 : null,
                 array_values($commonUses)));
+
+        if ($phpClass->getName() == 'ConfigurationCheck') {
+//            dd($newClassPhp, $phpClass->getUse(), $classUses);
+        }
+
         foreach ($uses as $className => $info) {
-            array_push($classUses, sprintf("use %s;", $info['use']));
+            if ($info['use'] !== $phpClass->getUse()) {
+                array_push($classUses, sprintf("use %s;", $info['use']));
+            }
         }
 
         $classUses = array_unique($classUses);
@@ -748,7 +756,26 @@ END;
 
         $php = $phpClass->getOriginalPhp();
         if (preg_match('/controller/i', $phpClass->getUse())) {
-            $php = str_replace('__construct', 'ca_construct', $php);
+            // get the parameters and allow nulls? Or typehint?  Perhaps they're all the same?
+            if (preg_match('/__construct\((.+?)\)/', $php, $m)) {
+                $old = $m[0];
+                $args = explode(',', $m[1]);
+                foreach ($args as $arg) {
+                    if (preg_match('/&?\$po_request/', $arg)) {
+                        //     public function __construct(RequestHTTP &$po_request, ResponseHTTP &$po_response, $pa_view_paths = null)
+                        $arg = "RequestHTTP " . $arg;
+                    }
+                    if (preg_match('/&?\$po_response/', $arg)) {
+                        //     public function __construct(RequestHTTP &$po_request, ResponseHTTP &$po_response, $pa_view_paths = null)
+                        $arg = "ResponseHTTP " . $arg;
+                    }
+                    // do we really need the pass by reference?
+//                    dd($arg);
+                }
+                $newArgs = join(',', array_map(fn($arg) => str_contains($arg, '=') ? $arg : $arg.'=null', $args));
+                $php = str_replace($old, sprintf('__construct(%s)', $newArgs), $php);
+            }
+//            $php = str_replace('__construct', 'ca_construct', $php);
             // fix the methods, including the constructors.
         }
         $code = $newClassPhp
