@@ -165,7 +165,7 @@ if (!defined("__CA_DEFAULT_LOCALE__")) {
 # Only set this if your web server includes mod_rewrite and it is enabled using
 # the provided .htaccess file
 #
-define("__CA_USE_CLEAN_URLS__", 0);
+define("__CA_USE_CLEAN_URLS__", true);
 
 
 # __CA_APP_NAME__ = a short name alphanumeric-only (no spaces or punctuation) identifier for this CollectiveAccess installation

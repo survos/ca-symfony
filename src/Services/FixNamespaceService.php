@@ -153,6 +153,7 @@ class FixNamespaceService
     // given a php file, extract the classes, traits and interfaces defined in it.  Assumes these key words are in the first column, and that their ending brace is as well.  use cs-fixer.
     public function createClasses(PhpFile $phpFile)
     {
+        $headerPhp = $phpFile->getRawPhp(); // eventually remove classes and functions
         if ($php = $phpFile->getRawPhp())
         {
             // get rid of the first php tag.
@@ -216,23 +217,35 @@ class FixNamespaceService
 
                     // hide the class source for now, though we need the comment.  This is so we can clean up the functions.
                     $php = str_replace($classPhp, '', $php);
+                    if (str_contains($php, 'function WLPlugOfficeShutdown'))
+                    {
+//                        dd($classPhp, $php);
+                    }
+                    $headerPhp = str_replace($classPhp, '', $headerPhp);
                 }
                 // get everything to the first function and squeeze in a class
             } else {
 //                dd("No class found", $php);
             }
 
+//            $headerPhp = $phpFile->getHeaderPhp();
             // the php no longer has the classes in it.  All the functions (public functions??) should be exported.
-            if (preg_match('/(.*?)\n(private |public )?function ([a-zA-Z0-9_]+)\s*\(.*?\n}\n/sm', $php, $mm))
+            if (preg_match($pattern = '/(.*?)\n(private |public )?function ([a-zA-Z0-9_]+)\s*\(.*?\n}\n?/sm', $php, $mm))
             {
                 $path = $phpFile->getRealPath();
-                if (str_contains($php, 'function _t($ps_key)'))
+
+                $headerPhp = $mm[1]; // that is, everything before the first function.
+                if (str_contains($php, 'function WLPlugOfficeShutdown'))
                 {
-//                    dd($php, $phpFile->getRealPath());
+//                    dd($mm, $php, $headerPhp);
                 }
 
                 // @todo: fix this so docBlocks are correct
-                $functionsPhp = str_replace($mm[1], '', $php); // the php content
+//                $headerPhp = str_replace($mm[1], '', $headerPhp); // remove the functions
+                if (str_contains($php, 'function WLPlugOfficeShutdown'))
+                {
+//                    dd($phpFile->getRealPath(), $php, $headerPhp, $m[1]);
+                }
                 // tidy this up?  Add public?
 //                exec($functionsPhp); // this should define the function
 
@@ -257,10 +270,8 @@ class FixNamespaceService
                 $phpFile->addPhpClass($phpClass);
 
 //                $phpFile->setRawPhp(str_replace($functionsPhp, '', $php));
-                $phpFile
-//                    ->setStatus(PhpFile::IS_CLASS) // we're forcing it into a class
-                    ->setHeaderPhp($php); // the original PHP, minus the functions.  The class has to go below this,because sometimes globals are set., e.g. accessHelpers.php
 
+                // get the constants
                 // if there's any PHP besides the first one, it's a template.  if there's a $this, it's an include for a class (and should be manually included when the time comes).
                 if (preg_match('/<?/', $php) || preg_match('/\$this/', $php))
                 {
@@ -271,7 +282,37 @@ class FixNamespaceService
                 {
                     dd($phpClass);
                 }
+            } else {
+
+//                dd($pattern, $php);
             }
+
+            // at this point the classes and functions should be removed from the php, leaving the constants.
+            $phpFile
+                ->setHeaderPhp($headerPhp); // the original PHP, minus the functions.  The class has to go below this,because sometimes globals are set., e.g. accessHelpers.php
+
+
+            $constants = [];
+            foreach ($phpFile->getHeaderLines() as $line) {
+                $line = str_replace(" ", '', $line);
+                if (preg_match('/^const/', $line, $m)) {
+                    dd($line, $phpFile->getRealPath());
+                    $constants[$name] = $value;
+                }
+                if (preg_match('/define\((.*?),(.*?)\);/', $line, $m)) {
+                    $name = str_replace('"', '', $m[1]);
+                    $name = str_replace("'", '', $name);
+
+                    $constants[$name] = $m[2];
+                }
+            }
+            $phpFile->setConstants($constants);
+            if (count($constants) || str_contains($phpFile->getRealPath(), '/BaseModel.php')) {
+//                dd($phpFile->getRealPath(), $phpFile->getConstants(), $constants);
+            }
+
+
+
 
             if ($phpFile->getPhpClasses()->count() === 0)
             {
@@ -331,7 +372,7 @@ END;
         }
 
         $phpFile->setInitialIncludes($include); // strings, mapped to files by caller.
-        $phpFile->setHeaderPhp($php); // php without the classes, still raw, but now we have the include list
+        $phpFile->setHeaderPhp($php); // php without the classes, still raw, but now we have the include list and the functions.
         return $phpFile;
     }
 
@@ -505,6 +546,14 @@ END;
 
     public function writeFile($filename, $contents)
     {
+
+        // tweaks before writing.
+        if (str_contains($contents, 'new $')) {
+//            $rawPhp = preg_replace('/(new $', "UtilityClass::")
+            $contents = preg_replace('/(require_once|include_once)\(/', '$1($realPath=', $contents);
+//            dd($rawPhp);
+        }
+
         $newDir = dirname($filename);
         if (!is_dir($newDir))
         {
@@ -589,7 +638,7 @@ END;
 //    }
 
     public function createClassPhp(PhpClass $phpClass, array $functionUses, array $commonUses, array $options): ?string {
-        $options = (new OptionsResolver())->setDefaults(['write' => false, 'process' => false, 'filter' => false])->resolve($options);
+        $options = (new OptionsResolver())->setDefaults(['debug' => false, 'write' => false, 'process' => false, 'filter' => false])->resolve($options);
         $filter = $options['filter'];
 
         $phpFile = $phpClass->getPhpFile();
@@ -755,6 +804,8 @@ END;
 //        $reflectionClass = $reflector->reflect($phpClass->getUse());
 
         $php = $phpClass->getOriginalPhp();
+//        if (0) // skip controll stuff for now.
+        if (0)
         if (preg_match('/controller/i', $phpClass->getUse())) {
             // get the parameters and allow nulls? Or typehint?  Perhaps they're all the same?
             if (preg_match('/__construct\((.+?)\)/', $php, $m)) {
@@ -778,12 +829,19 @@ END;
 //            $php = str_replace('__construct', 'ca_construct', $php);
             // fix the methods, including the constructors.
         }
+
         $code = $newClassPhp
-            . $phpClass->getHeader()
+            . $phpClass->getHeader() . $phpFile->getConstantsAsCode()
             . "\n" . $php;
+
+//        if ($phpFile->getConstantsAsCode()) { dd($code, $phpFile); }
+
+        if ($stopMatch && !empty($options['debug'] )) {
+            dd($newFilename, $code);
+        }
+
         if ($options['write']) {
             $this->writeFile($newFilename, $code);
-//            dd($newFilename, $code);
             return $newFilename;
         } else {
             return null;

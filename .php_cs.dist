@@ -10,7 +10,9 @@ $finder = PhpCsFixer\Finder::create()
 ;
 //
 
-$config = new PhpCsFixer\Config();return Config::create()
+$config = new Config();
+
+return Config::create()
     ->setRiskyAllowed(true)
     ->setIndent('    ')
     ->setLineEnding("\n")

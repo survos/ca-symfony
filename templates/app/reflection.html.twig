@@ -63,6 +63,7 @@
                     {% endif %}
                     {{ phpFile.relativeFilename }} <span class="badge badge-light">{{ phpFile.requiredPhpFiles.count }}</span>
                     #Uses: {{ phpFile.uses|length }}
+                    #const: {{ phpFile.constants|length }}
                     <ul class="list">
                         {#                        this first three (more?) are included everywhere#}
                         {% for use in phpFile.uses|slice(0,3) %}

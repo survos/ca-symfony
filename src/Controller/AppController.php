@@ -88,6 +88,7 @@ class AppController extends AbstractController
         if ($request) {
             $options = [
                 'write' => $request->get('write', false),
+                'debug' => $request->get('debug', false),
                 'process' => $request->get('process', true),
                 'filter' => $request->get('filter')
             ];
@@ -112,7 +113,8 @@ class AppController extends AbstractController
             ->in($dirToRemove = ($dir . '/vendor/collectiveaccess/providence'))
             ->filter(static function (\SplFileInfo $file) {
 //                return $file->isFile() && !preg_match('/((Office|ImageMagick|SparqlEndpoint|BagIt|SimpleZip|sFTP|phpFlickr|vimeo|S3)\.php)|providence\/(app\/tmp|vendor|tests)/', $file->getRealPath()) && !preg_match('/(xxxphpqrcode)/', $file->getRealPath()) && preg_match('//', $file->getRealPath()) && preg_match('/\.(php)$/i', $file->getFilename());
-                return $file->isFile() && !preg_match('/providence\/(app\/tmp|vendor|tests)/', $file->getRealPath()) && !preg_match('/(xxxphpqrcode)/', $file->getRealPath()) && preg_match('//', $file->getRealPath()) && preg_match('/\.(php)$/i', $file->getFilename());
+                return $file->isFile() && !preg_match('/providence\/(app\/tmp|vendor|tests)/', $file->getRealPath()) &&
+                     preg_match('//', $file->getRealPath()) && preg_match('/\.(php|XXconf)$/i', $file->getFilename());
             });
 
         $this->logger->info("Processing files in ", [$dirToRemove]);
@@ -133,6 +135,9 @@ class AppController extends AbstractController
         foreach ($finder as $file)
         {
             $absolutePath = $file->getRealPath();
+            if (!preg_match('/BaseModel/i', $file->getRealPath())) {
+//                continue;
+            }
 
             // perhaps...
 //            $astLocator = (new BetterReflection())->astLocator();
@@ -145,7 +150,15 @@ class AppController extends AbstractController
 
             $phpFile = (new PhpFile($absolutePath, $dirsToRemove))
                 ->setFilename($file->getFilename());
+
+            if ($file->getExtension() === 'conf') {
+//                dd($phpFile->getPhpClasses());
+                $phpFile->setStatus(PhpFile::IS_CONF);
+//                continue;
+            }
+
             $fixNamespaceService->createClasses($phpFile);
+
             $files[$file->getRealPath()] = $phpFile;
             // for class lookup.
             foreach ($phpFile->getPhpClasses() as $phpClass) {
@@ -183,7 +196,20 @@ class AppController extends AbstractController
         ];
         // extract the files that are simply functions and add them to composer, and pass the HUGE function list into the generator.
         $functionFiles = $functionUses = $commonUses =  [];
+        $commonUses = ['App\Services\ClassUtilities'];
+
+        $allConstants = [];
+
+        # OS family constants
+        define('OS_POSIX', 0);
+        define('OS_WIN32', 1);
+        die("Add OS constants");
+
         foreach ($files as $file) {
+            if ($constants = $file->getConstants()) {
+                $allConstants = array_merge($allConstants, $constants);
+//                dd($constants, $allConstants);
+            }
             // expand "use" if just a single word.  Not great, but worth a try.
             $uses = $phpFile->getUses();
             foreach ($file->getUses() as $idx => $use) {
@@ -225,6 +251,20 @@ class AppController extends AbstractController
             }
         }
 
+        $lines = [];
+        foreach ($allConstants as $var=>$val) {
+            if (in_array($var, ['__CA_BASE_DIR__'])) {
+                continue;
+            }
+            if (true || str_contains($val, '(') || str_contains($val, '$')) {
+                array_push($lines, sprintf("define('%s', %s);", $var, $val));
+            } else {
+                array_push($lines, sprintf("const %s = %s;", $var, $val));
+            }
+        }
+        $fn = $this->namespacedDir . '/../config/_constants.php';
+        file_put_contents($fn, $contents = "<?php \n\n" . join("\n", $lines));
+//        dd($fn, $contents, $allConstants);
         $functionUses = array_unique($functionUses);
         sort($functionUses);
         ksort($commonUses);
@@ -247,7 +287,7 @@ class AppController extends AbstractController
                     }
                 }
 
-                if (!str_contains($phpFile->getRealPath(), 'BaseVersionUpdater')) {
+                if (!str_contains($phpFile->getRealPath(), '/ApplicationPluginManager.php')) {
 //                    continue;
                 }
                 switch ($phpFile->getStatus()) {
@@ -263,8 +303,6 @@ class AppController extends AbstractController
                             if ($fixNamespaceService->processHeader($phpClass))
                             {
                                 $fixNamespaceService->createClassPhp($phpClass, $functionUses, $commonUses, $options);
-                                if ($options['process']) {
-                                }
                             }
                         }
                         // if no classes or functions, it's just a bunch of "defines()", so should be copied, like version.php
@@ -273,6 +311,11 @@ class AppController extends AbstractController
                             $fixNamespaceService->writeFile($newFilename, $phpFile->getRawPhp());
                         }
                         // extract the classes
+                        break;
+                    case PhpFile::IS_CONF:
+                        $newFilename = $this->namespacedDir . '/' . $phpFile->getRelativeFilename();
+                        $fixNamespaceService->writeFile($newFilename, $phpFile->getRawPhp());
+//                        dd($newFilename, $phpFile->getRawPhp());
                         break;
                     case PhpFile::IS_VIEW:
                         // direct copy, after cleaning up the php
@@ -286,13 +329,23 @@ class AppController extends AbstractController
 //                    //
 //                        $finalFile = $fixNamespaceService->createClassPhp($phpClass, $functionUses, $commonUses, $options);
 //                        dd($finalFile, $phpClass);
+                    // ugh, do we need everything?  maybe everything in lib, or even manager?
+                    $commonClasses = [
+                        'use CA\app\lib\Controller\AppController;',
+                        'use CA\app\service\controllers\AuthController;',
+                        'use CA\app\lib\Auth\AuthenticationManager;',
+                        'use CA\app\lib\AssetLoadManager;',
+                        'use CA\app\lib\DashboardManager;',
+                        'use App\Services\ClassUtilities;',
+                    ];
 
                     if (str_contains($php, '<?php')) {
                         // insert the includes before the first closing php tag.
-                        $php = preg_replace('/^<\?php/',  "<?php\n\n" .join("\n", $functionUses) . "\n", $php, 1);
-//                        dd($php);
-                    }
 
+                        $php = preg_replace('/^<\?php/',  "<?php\n\n" .
+                            join("\n", $commonClasses) . "\n" .
+                            join("\n", $functionUses) . "\n", $php, 1);
+                    }
                         $fixNamespaceService->writeFile($newFilename, $php);
 
 
@@ -312,6 +365,7 @@ class AppController extends AbstractController
                         break;
                 }
         }
+
 
 
             if ($filter = $options['filter']) {

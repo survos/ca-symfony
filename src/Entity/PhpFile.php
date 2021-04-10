@@ -34,6 +34,7 @@ class PhpFile
     public const IS_IGNORED = 'ignored'; // one or more classes defined
 
     public const IS_CLI = 'cli'; // one or more classes defined
+    public const IS_CONF = 'conf'; // .conf file
 
     /**
      * @ORM\Id
@@ -130,14 +131,16 @@ class PhpFile
             $cleanerDir = str_replace($dirToRemove . '/', '', $cleanerDir);
         }
         $this->setFilename(pathinfo($realPath, PATHINFO_FILENAME));
+        $this->phpClasses = new ArrayCollection();
+        $this->requiredPhpFiles = new ArrayCollection();
         $this
             ->setRealPath($realPath)
             ->setRelativeFilename($cleanerDir)
             ->setRelativePath(pathinfo($this->getRelativeFilename(), PATHINFO_DIRNAME))
             ->setRawPhp(trim(file_get_contents($realPath)))
         ;
-        $this->phpClasses = new ArrayCollection();
-        $this->requiredPhpFiles = new ArrayCollection();
+
+
     }
 
     public static function applyNamespaceHacks($path)
@@ -198,9 +201,73 @@ class PhpFile
 
         // some hacks for migrating, should really be done at the very end, when writing classes.
         $rawPhp = str_replace('$vs_dbclass = "Db_$vs_dbtype";', '$vs_dbclass = \CA\app\lib\Db\Db_mysqli::class;', $rawPhp);
+        $rawPhp = str_replace('get_magic_quotes_gpc()', 'false /* was get_magic_quotes_gpc() */', $rawPhp);
+        $rawPhp = str_replace("include(__CA_LIB_DIR__ . '/Search/' . \$vs_search_result_class . '.php');",
+            "\$vs_search_result_class = '\CA\app\lib\Search\\' . \$vs_search_result_class;", $rawPhp);
+        $rawPhp = str_replace("\$vs_plugin_dir . 'Plugin';", 'ClassUtilities::NsFromPath($realPath);', $rawPhp);
         $rawPhp = str_replace('new ReflectionClass("ConfigurationCheck");', 'new ReflectionClass(self::class);', $rawPhp);
+        $rawPhp = str_replace('die(', 'assert(false, ', $rawPhp);
+
+        // really we want to check if it's not empty, often this is used to check for a key, though.+
+        $rawPhp = preg_replace_callback('/is_array ?\(([^(]*?)\)/i', function ($m) {
+            $expression = $m[1];
+            assert(!empty($expression), $expression . json_encode($m));
+            // if an assigment, we can't simply call isset.  so try !empty
+            if (str_contains($expression, '=')) {
+                return "!empty($expression)";
+//            } elseif (str_contains($expression, '$s_instance_cache')) {
+//                dd($m);
+            } else {
+                return "( isset($expression) && is_array($expression))";
+            }
+        }, $rawPhp);
+//        $cache_key = $this->tableNum() . '/' . $pn_type_id . '/' . ($pb_include_sub_element_codes ? 1 : 0);
+//        if (! $pb_dont_cache
+//            && ((isset(BaseModelWithAttributes::$s_applicable_element_code_cache[$cache_key]))
+//                && is_array($va_tmp = BaseModelWithAttributes::$s_applicable_element_code_cache[$cache_key]))
+//        ) {
+//            return $va_tmp;
+//        }
+
+
+        $rawPhp = str_replace('$o_class_info = new ReflectionClass($vs_widget_classname);', '$o_class_info = new ReflectionClass($o_instance);', $rawPhp);
+        $rawPhp = str_replace('@mysqli_query($this->opr_db, $vs_sql', '@mysqli_query($this->opr_db, str_replace("CA\app\models\\\\", "", $vs_sql)', $rawPhp);
+
+        // not always!  Maybe only in controllers?
+//        return ($fqcn = ClassUtilities::getControllerFromRequest($vs_classname)) && new $fqcn();
+        // ($fqcn = ClassUtilities::getControllerFromRequest($ps_table)) && $t_instance =  new $fqcn;
+        // $t_instance = new $vs_class_name;
+
+//        ($fqcn = ClassUtilities::getControllerFromRequest($ps_table)) && $t_instance =  new $fqcn;//
+
+        $rawPhp = preg_replace('/\$([\S]+) = new \$vs_classname/', '($fqcn = ClassUtilities::getControllerFromRequest($vs_classname)) && $\1 = new $fqcn', $rawPhp);
+//
+
+//        $vs_search_result_class = "CA\app\lib\Search\\" . $vs_search_result_class;
+//            include(__CA_LIB_DIR__ . '/Search/' . $vs_search_result_class . '.php');
+
+        $rawPhp = str_replace('return new $vs_classname', '($fqcn = ClassUtilities::getControllerFromRequest($vs_classname)); return new $fqcn', $rawPhp);
+        $rawPhp = str_replace('$t_instance = new $ps_table', '($fqcn = ClassUtilities::getControllerFromRequest($ps_table)) && $t_instance = new $fqcn', $rawPhp);
+        $rawPhp = str_replace('$t_instance = new $vs_class_name', '($fqcn = ClassUtilities::getControllerFromRequest($vs_class_name)) && $t_instance = new $fqcn', $rawPhp);
+        $rawPhp = str_replace('$o_instance = new $vs_widget_classname', '($fqcn = ClassUtilities::getControllerFromRequest($vs_widget_classname)) && $o_instance = new $fqcn', $rawPhp);
+        $rawPhp = str_replace('$vo_object = new $ps_table($pn_id);', '($fqcn = ClassUtilities::getControllerFromRequest($ps_table)) && $vo_object = new $fqcn($pn_id);', $rawPhp);
+//        $ps_table = ClassUtilities::getControllerFromRequest($ps_table);
+
+        // sigh.  Look for this pattern
+//        require_once($vs_app_plugin_dir . '/' . $vs_plugin_dir . '/' . $vs_plugin_dir . 'Plugin.php');
+//        $vs_plugin_classname = $vs_plugin_dir . 'Plugin';
+//        $o_instance = new $vs_plugin_classname($vs_app_plugin_dir . '/' . $vs_plugin_dir);
+
+
+
+
+
         if (str_contains($rawPhp, '(Exception')) {
             $rawPhp = str_replace('(Exception', '(\Exception', $rawPhp);
+//            dd($rawPhp);
+        }
+        if (str_contains($rawPhp, 'Exception extends Exception')) {
+            $rawPhp = str_replace('Exception extends Exception', 'Exception extends \Exception', $rawPhp);
 //            dd($rawPhp);
         }
 
@@ -227,6 +294,9 @@ class PhpFile
         {
             $this->setStatus(self::IS_TRAIT);
         }
+        elseif (preg_match('|/views/|', $this->getRealPath(), $m)) {
+            $this->setStatus(self::IS_VIEW);
+        }
         elseif (preg_match('/function ([A-Za-z_0-9]+)[\s|(]/i', $rawPhp, $m))
         {
             $this->setStatus(self::IS_INC);
@@ -238,6 +308,10 @@ class PhpFile
         elseif (preg_match('|setup\.php|', $rawPhp, $m))
         {
             $this->setStatus(self::IS_SCRIPT);
+        }
+        elseif (preg_match('|\.conf$|', $this->getRealPath(), $m))
+        {
+            $this->setStatus(self::IS_CONF);
         }
         elseif (preg_match('{/views|printTemplates/}', $this->getRealPath(), $m))
         {
@@ -280,7 +354,7 @@ class PhpFile
 
     public function setStatus(string $status): self
     {
-//        assert($status <> self::IS_VIEW, $this->getFilename());
+//        assert($status <> self::IS_INC, $this->getFilename());
         $this->status = $status;
 
         return $this;
@@ -474,6 +548,28 @@ class PhpFile
     public function getConstants(): ?array
     {
         return $this->constants;
+    }
+
+    // handles the global definitions, but doesn't really work right with classes.
+    public function getConstantsAsCode(): string
+    {
+        return '';
+        $lines = [];
+        $header = $this->getHeaderPhp();
+        $header = preg_replace('/function.*?\n{.*?\n}/ism', '', $header); // remove all functions.
+        // hack to remove stray functions
+        foreach (explode("\n", $header) as $line) {
+            if (preg_match('/^(require|use)/', $line)) {
+                continue;
+            }
+            array_push($lines, $line);
+//            if (str_contains($val, '(')) {
+//                array_push($lines, sprintf("define('%s', %s);", $var, $val));
+//            } else {
+//                array_push($lines, sprintf("const %s = %s;", $var, $val));
+//            }
+        }
+        return join("\n", $lines) . "\n";
     }
 
     public function setConstants(?array $constants): self
