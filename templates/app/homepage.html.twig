@@ -3,10 +3,10 @@
 {% block body %}
     <ol>
         <li>
-            <a href="{{ path('app_load_files') }}" class="btn btn-danger">Load Files</a>
+            <a href="{{ path('app_load_files', {updateVendor: 0}) }}" class="btn btn-danger">Load Files</a>
         </li>
-        <li>  <a href="{{ path('app_reflection') }}" class="btn btn-warn">Reflect</a> </li>
-        <li>  <a href="{{ path('app_reflection') }}" class="btn btn-warn">Reflect and create files</a> </li>
+        <li>  <a href="{{ path('app_reflection', {updateVendor: 0}) }}" class="btn btn-warn">Reflect</a> </li>
+{#        <li>  <a href="{{ path('app_reflection') }}" class="btn btn-warn">Reflect and create files</a> </li>#}
     </ol>
 
 

@@ -380,7 +380,7 @@ class ClassStructure
         return $this;
     }
 
-    
+
     private function extractHeader()
     {
         dd("old...");
@@ -416,9 +416,9 @@ class ClassStructure
 //                    dd($this->getFilename(), $m, $this->getNs(), $this->getPath());
                 }
             }
-            
+
             return;
-            
+
 
 //                dd($header);
             // we need to add a Use for every class that's in the
@@ -572,7 +572,7 @@ class ClassStructure
         }
         return $this->includes;
     }
-    
+
     public function isRawInclude(): bool
     {
         return $this->getStatus() === self::RAW_INCLUDE;

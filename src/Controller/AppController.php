@@ -175,7 +175,7 @@ class AppController extends AbstractController
 
 //        /home/tac/tacman/providence/app/lib/Search/SitePageMediaSearchResults.php"
 //  523 => "/home/tac/tacman/providence/app/lib/Search/SitePageMediaSearch.php"
-  
+
 //        dd(array_keys($files));
         $fixNamespaceService->setFileMap($files);
 
@@ -435,7 +435,7 @@ class AppController extends AbstractController
 
 //                    ->setDocComment($r->getDocComment())
 //                    ->setPhp(join("\n", array_slice($f['phpLines'], $startLine, $endLine)))
-                
+
 
                 $newHeader = [];
                 if ($class  == 'BaseServiceController')
@@ -603,6 +603,7 @@ class AppController extends AbstractController
      */
     public function loadFiles(Request $request, ParameterBagInterface $bag, FixNamespaceService $fixNamespaceService): Response
     {
+//        $request->set
         // test php extraction.  Needs to be a a service, since the relative path changes if on the command line.
         $finder = new Finder();
         $dir = $bag->get('kernel.project_dir') . '/vendor/collectiveaccess/providence/app';
